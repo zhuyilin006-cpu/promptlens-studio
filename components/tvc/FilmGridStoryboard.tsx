@@ -1,82 +1,100 @@
-import React from 'react';
+'use client';
 
-interface StoryboardItem {
-  id: string;
-  title: string;
-  subtitle: string;
-  description: string;
-  imageUrl: string;
-  tags: string[];
-  price: string;
+import React from 'react';
+import { motion } from 'framer-motion';
+import ShotCard from './ShotCard';
+
+interface ShotDetail {
+  shot_number: string;
+  time_code: string;
+  shot_title: string;
+  camera_movement: string;
+  transition: string;
+  visual_description: string;
+  audio_sfx: string;
+  midjourney_shot_prompt?: string;
+}
+
+interface StoryboardData {
+  story_name: string;
+  one_line_theme: string;
+  total_duration: string;
+  total_shots: number;
+  pacing: string;
+  visual_style: string;
+  video_mainline: string;
+  core_transitions: string;
+  memory_point: string;
+  shots: ShotDetail[];
 }
 
 interface FilmGridStoryboardProps {
-  data: StoryboardItem[];
-  onExecuteAction?: () => void;
+  data: StoryboardData;
+  onExecuteAction: () => void;
 }
 
 export default function FilmGridStoryboard({ data, onExecuteAction }: FilmGridStoryboardProps) {
   return (
-    <div className="w-full p-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {data.map((item) => (
-          <div 
-            key={item.id}
-            className="group bg-white border border-gray-100 hover:border-gray-200 transition-all duration-300 overflow-hidden"
-          >
-            {/* Image Container */}
-            <div className="aspect-[3/4] bg-gray-100 relative overflow-hidden">
-              {item.imageUrl ? (
-                <img 
-                  src={item.imageUrl} 
-                  alt={item.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                  <span className="text-gray-400 text-sm font-mono">NO IMAGE</span>
-                </div>
-              )}
-              {/* Overlay */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
-            </div>
-            
-            {/* Content */}
-            <div className="p-4 space-y-2">
-              <div className="text-[9px] font-mono text-gray-400 tracking-widest uppercase">
-                {item.subtitle}
-              </div>
-              <h3 className="font-serif italic text-lg text-[#111111] group-hover:text-gray-700 transition-colors">
-                {item.title}
-              </h3>
-              <p className="text-[11px] text-gray-500 leading-relaxed">
-                {item.description}
-              </p>
-              {/* Tags */}
-              <div className="flex flex-wrap gap-1 pt-2">
-                {item.tags.map((tag, idx) => (
-                  <span 
-                    key={idx}
-                    className="text-[8px] font-mono text-gray-400 border border-gray-200 px-1.5 py-0.5"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              {/* Price & Action */}
-              <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-3">
-                <span className="font-serif italic text-sm">{item.price}</span>
-                <button 
-                  onClick={onExecuteAction}
-                  className="text-[9px] font-mono bg-[#111111] text-white px-3 py-1.5 hover:bg-gray-800 transition-colors tracking-wider"
-                >
-                  EXECUTE
-                </button>
-              </div>
-            </div>
+    <div className="w-full px-12 py-8 bg-[#FBFBFA]">
+      {/* 高定杂志排版信息流 */}
+      <header className="border-b border-[#111111] pb-6 mb-10 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 select-none">
+        <div>
+          <div className="text-[9px] font-mono tracking-[0.25em] text-gray-400 uppercase mb-2">
+            PROMPTLENS STUDIO / GENERATIVE PIPELINE
           </div>
+          <h1 className="text-3xl md:text-4xl font-serif font-light tracking-wide text-[#111111]">
+            {data.story_name}
+          </h1>
+          <p className="text-xs text-gray-500 font-sans tracking-wider mt-1.5">
+            {data.one_line_theme}
+          </p>
+        </div>
+
+        {/* 工业数据元网格 */}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1 font-mono text-[11px] border-l border-gray-300 pl-6 lg:w-72">
+          <span className="text-gray-400">DURATION</span>
+          <span className="text-right font-medium text-[#111111]">{data.total_duration}</span>
+          <span className="text-gray-400">STORYBOARD</span>
+          <span className="text-right font-medium text-[#111111]">{data.total_shots} CUTS</span>
+          <span className="text-gray-400">PACING</span>
+          <span className="text-right font-medium text-[#111111] truncate">{data.pacing}</span>
+          <span className="text-gray-400">VISUAL STYLE</span>
+          <span className="text-right font-medium text-[#111111] truncate">{data.visual_style}</span>
+        </div>
+      </header>
+
+      {/* 2×4 分镜矩阵 */}
+      <motion.div 
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-10"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      >
+        {data.shots.map((shot: ShotDetail, index: number) => (
+          <ShotCard 
+            key={shot.shot_number} 
+            shot={shot} 
+            index={index} 
+            onAction={onExecuteAction}
+          />
         ))}
-      </div>
+      </motion.div>
+
+      {/* 底部策划摘要卡片 */}
+      <footer className="mt-16 pt-8 border-t border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-8 font-sans select-none">
+        <div>
+          <h4 className="text-[10px] font-mono uppercase tracking-widest text-gray-400 mb-2">视频主线 / VIDEO MAINLINE</h4>
+          <p className="text-xs text-gray-600 leading-relaxed">{data.video_mainline}</p>
+        </div>
+        <div>
+          <h4 className="text-[10px] font-mono uppercase tracking-widest text-gray-400 mb-2">核心转场 / CORE TRANSITIONS</h4>
+          <p className="text-xs text-gray-600 leading-relaxed">{data.core_transitions}</p>
+        </div>
+        <div>
+          <h4 className="text-[10px] font-mono uppercase tracking-widest text-gray-400 mb-2">核心记忆点 / VISUAL HOOK</h4>
+          <p className="text-xs font-medium text-amber-950 leading-relaxed">{data.memory_point}</p>
+        </div>
+      </footer>
     </div>
   );
 }
