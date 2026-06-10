@@ -35,66 +35,78 @@ interface FilmGridStoryboardProps {
 
 export default function FilmGridStoryboard({ data, onExecuteAction }: FilmGridStoryboardProps) {
   return (
-    <div className="w-full px-12 py-8 bg-[#FBFBFA]">
-      {/* 高定杂志排版信息流 */}
-      <header className="border-b border-[#111111] pb-6 mb-10 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 select-none">
-        <div>
-          <div className="text-[9px] font-mono tracking-[0.25em] text-gray-400 uppercase mb-2">
-            PROMPTLENS STUDIO / GENERATIVE PIPELINE
+    <section className="w-full bg-[#F7F4EF] px-5 py-6 lg:px-8 lg:py-8">
+      <div className="mb-6 border border-[#111111]/10 bg-[#EFE8DD]/64 p-4 lg:p-5">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="mb-3 flex items-center gap-3 font-mono text-[9px] uppercase tracking-[0.28em] text-[#8A8175]">
+              <span className="h-px w-8 bg-[#111111]" />
+              PromptLens Studio / Generative Pipeline
+            </div>
+            <h2 className="font-serif text-4xl font-light leading-none tracking-[-0.035em] text-[#111111] md:text-5xl">
+              {data.story_name}
+            </h2>
+            <p className="mt-3 max-w-xl text-xs leading-6 tracking-wide text-[#6F665C]">
+              {data.one_line_theme}
+            </p>
           </div>
-          <h1 className="text-3xl md:text-4xl font-serif font-light tracking-wide text-[#111111]">
-            {data.story_name}
-          </h1>
-          <p className="text-xs text-gray-500 font-sans tracking-wider mt-1.5">
-            {data.one_line_theme}
-          </p>
+
+          <div className="grid min-w-full grid-cols-2 border border-[#D8D1C7] bg-[#F7F4EF] font-mono text-[10px] uppercase tracking-[0.18em] text-[#8A8175] sm:min-w-[28rem]">
+            <div className="border-b border-r border-[#D8D1C7] p-3">
+              <span className="block text-[8px] text-[#A49A8F]">Duration</span>
+              <strong className="mt-2 block text-[#111111]">{data.total_duration}</strong>
+            </div>
+            <div className="border-b border-[#D8D1C7] p-3">
+              <span className="block text-[8px] text-[#A49A8F]">Storyboard</span>
+              <strong className="mt-2 block text-[#111111]">{data.total_shots} Cuts</strong>
+            </div>
+            <div className="border-r border-[#D8D1C7] p-3">
+              <span className="block text-[8px] text-[#A49A8F]">Pacing</span>
+              <strong className="mt-2 block truncate text-[#111111]">{data.pacing}</strong>
+            </div>
+            <div className="p-3">
+              <span className="block text-[8px] text-[#A49A8F]">Visual Style</span>
+              <strong className="mt-2 block truncate text-[#111111]">{data.visual_style}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="border border-[#111111]/12 bg-[#FBF8F1] p-3 shadow-[0_24px_80px_rgba(17,17,17,0.06)] lg:p-5">
+        <div className="mb-4 flex items-center justify-between border-b border-[#111111]/10 pb-3 font-mono text-[9px] uppercase tracking-[0.24em] text-[#8A8175]">
+          <span>Storyboard Board / 2 × 4 Frame Matrix</span>
+          <span>Output preview locked</span>
         </div>
 
-        {/* 工业数据元网格 */}
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1 font-mono text-[11px] border-l border-gray-300 pl-6 lg:w-72">
-          <span className="text-gray-400">DURATION</span>
-          <span className="text-right font-medium text-[#111111]">{data.total_duration}</span>
-          <span className="text-gray-400">STORYBOARD</span>
-          <span className="text-right font-medium text-[#111111]">{data.total_shots} CUTS</span>
-          <span className="text-gray-400">PACING</span>
-          <span className="text-right font-medium text-[#111111] truncate">{data.pacing}</span>
-          <span className="text-gray-400">VISUAL STYLE</span>
-          <span className="text-right font-medium text-[#111111] truncate">{data.visual_style}</span>
-        </div>
-      </header>
+        <motion.div
+          className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {data.shots.map((shot: ShotDetail, index: number) => (
+            <ShotCard
+              key={shot.shot_number}
+              shot={shot}
+              index={index}
+              onAction={onExecuteAction}
+            />
+          ))}
+        </motion.div>
+      </div>
 
-      {/* 2×4 分镜矩阵 */}
-      <motion.div 
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-10"
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      >
-        {data.shots.map((shot: ShotDetail, index: number) => (
-          <ShotCard 
-            key={shot.shot_number} 
-            shot={shot} 
-            index={index} 
-            onAction={onExecuteAction}
-          />
+      <footer className="mt-8 grid grid-cols-1 border border-[#D8D1C7] bg-[#111111] text-[#F7F4EF] md:grid-cols-3">
+        {[
+          ['VIDEO MAINLINE', data.video_mainline],
+          ['CORE TRANSITIONS', data.core_transitions],
+          ['VISUAL HOOK', data.memory_point],
+        ].map(([label, value], index) => (
+          <div key={label} className={`p-5 ${index < 2 ? 'border-b border-white/10 md:border-b-0 md:border-r' : ''}`}>
+            <h4 className="mb-3 font-mono text-[9px] uppercase tracking-[0.25em] text-white/38">{label}</h4>
+            <p className="text-xs leading-6 text-white/72">{value}</p>
+          </div>
         ))}
-      </motion.div>
-
-      {/* 底部策划摘要卡片 */}
-      <footer className="mt-16 pt-8 border-t border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-8 font-sans select-none">
-        <div>
-          <h4 className="text-[10px] font-mono uppercase tracking-widest text-gray-400 mb-2">视频主线 / VIDEO MAINLINE</h4>
-          <p className="text-xs text-gray-600 leading-relaxed">{data.video_mainline}</p>
-        </div>
-        <div>
-          <h4 className="text-[10px] font-mono uppercase tracking-widest text-gray-400 mb-2">核心转场 / CORE TRANSITIONS</h4>
-          <p className="text-xs text-gray-600 leading-relaxed">{data.core_transitions}</p>
-        </div>
-        <div>
-          <h4 className="text-[10px] font-mono uppercase tracking-widest text-gray-400 mb-2">核心记忆点 / VISUAL HOOK</h4>
-          <p className="text-xs font-medium text-amber-950 leading-relaxed">{data.memory_point}</p>
-        </div>
       </footer>
-    </div>
+    </section>
   );
 }
