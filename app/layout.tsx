@@ -2,8 +2,8 @@ import './globals.css';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'PromptLens Studio ® - Advanced AI Application Hub',
-  description: 'Deconstructing Realism into Fine-grained Generative Prompt Protocols.',
+  title: 'PromptLens Studio ® - AI 影像分镜工作台',
+  description: '面向 AI 影像创作的分镜、提示词与节点工作流控制台。',
 };
 
 export default function RootLayout({

@@ -45,7 +45,7 @@ export default function ShotCard({ shot, index, selected, processing, rebuilt, o
     window.setTimeout(() => setCopyState('idle'), 1200);
   };
 
-  const statusLabel = processing ? 'PROCESSING' : rebuilt ? 'REBUILT' : selected ? 'SELECTED' : 'READY';
+  const statusLabel = processing ? '处理中' : rebuilt ? '已重绘' : selected ? '已选中' : '就绪';
 
   return (
     <motion.article
@@ -63,7 +63,7 @@ export default function ShotCard({ shot, index, selected, processing, rebuilt, o
         <div className="absolute inset-0 scanlines opacity-35" />
         {processing && <div className="absolute inset-0 animate-pulse bg-[#F5F1EA]/12" />}
         <div className="absolute left-3 top-3 font-mono text-[8px] uppercase tracking-[0.24em] text-white/42">
-          Frame {shot.shot_number}
+          画面 {shot.shot_number}
         </div>
         <div className={`absolute right-3 top-3 h-1.5 w-1.5 ${processing ? 'animate-ping bg-amber-300' : rebuilt ? 'bg-blue-300' : 'bg-emerald-400'}`} />
         <div className="absolute inset-x-6 top-1/2 h-px bg-white/12" />
@@ -84,7 +84,7 @@ export default function ShotCard({ shot, index, selected, processing, rebuilt, o
               onClick={(event) => event.stopPropagation()}
             >
               <div className="mb-3 flex items-center justify-between font-mono text-[8px] uppercase tracking-[0.22em] text-[#8A8175]">
-                <span>Command</span>
+                <span>操作</span>
                 <span>{shot.time_code}</span>
               </div>
               <div className="grid gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em]">
@@ -93,14 +93,14 @@ export default function ShotCard({ shot, index, selected, processing, rebuilt, o
                   disabled={processing}
                   className="bg-[#111111] px-3 py-2 text-[#F5F1EA] transition-colors hover:bg-[#2A2A2A] disabled:cursor-not-allowed disabled:bg-[#7B746B]"
                 >
-                  {processing ? 'Processing' : 'Rebuild Frame'}
+                  {processing ? '处理中' : '重绘此镜头'}
                 </button>
                 {shot.midjourney_shot_prompt && (
                   <button
                     onClick={copyPrompt}
                     className="bg-white/70 px-3 py-2 text-[#111111] shadow-[inset_0_0_0_1px_rgba(17,17,17,0.12)] transition-colors hover:bg-white"
                   >
-                    {copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy Failed' : 'Copy Prompt'}
+                    {copyState === 'copied' ? '已复制' : copyState === 'failed' ? '复制失败' : '复制提示词'}
                   </button>
                 )}
               </div>
@@ -111,7 +111,7 @@ export default function ShotCard({ shot, index, selected, processing, rebuilt, o
 
       <div className="px-1 pb-1 pt-4">
         <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.2em] text-[#9A9084]">
-          <span>Shot / {shot.shot_number}</span>
+          <span>镜头 / {shot.shot_number}</span>
           <span>{shot.time_code}</span>
         </div>
         <h3 className="font-serif text-2xl font-light italic leading-none tracking-[-0.03em] text-[#111111]">

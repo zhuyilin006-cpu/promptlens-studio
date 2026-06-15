@@ -7,28 +7,28 @@ import { mockStoryboardData } from '@/data/mockStoryboard';
 
 const workflowNodes = [
   {
-    label: 'CHECKPOINT',
+    label: '检查点',
     title: 'Lovart_Fashion_v1.0',
-    meta: 'safetensors / locked',
-    status: 'READY',
+    meta: '模型权重 / 已锁定',
+    status: '就绪',
   },
   {
-    label: 'PROMPT MATRIX',
-    title: 'Texture / Fold / SSS',
-    meta: 'weights 1.20 / 0.85',
-    status: 'SYNC',
+    label: '提示词矩阵',
+    title: '纹理 / 褶皱 / 皮肤质感',
+    meta: '权重 1.20 / 0.85',
+    status: '同步中',
   },
   {
-    label: 'SAMPLER',
-    title: 'Euler a / 30 Steps',
-    meta: 'CFG 6.5 / seed pinned',
-    status: 'ARMED',
+    label: '采样器',
+    title: 'Euler a / 30 步',
+    meta: 'CFG 6.5 / 种子已固定',
+    status: '待执行',
   },
   {
-    label: 'OUTPUT',
-    title: 'Storyboard Frame Set',
-    meta: '8 cuts / 16:9 monitor',
-    status: 'LIVE',
+    label: '输出节点',
+    title: '分镜关键帧组',
+    meta: '8 镜头 / 16:9 监视器',
+    status: '在线',
   },
 ];
 
@@ -78,7 +78,7 @@ export default function RunningHubInspiredPage() {
             <div>
               <div className="font-serif text-xl italic leading-none tracking-wide">PromptLens Studio</div>
               <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.32em] text-[#8A8175]">
-                Generative image operations console
+                AI 影像分镜生产控制台
               </div>
             </div>
           </div>
@@ -88,18 +88,18 @@ export default function RunningHubInspiredPage() {
               onClick={() => setCurrentTab('app')}
               className={`border px-3 py-2 transition-colors ${currentTab === 'app' ? 'border-[#111111] bg-[#111111] text-[#F7F4EF]' : 'border-[#D8D1C7] bg-white/35 hover:border-[#111111] hover:text-[#111111]'}`}
             >
-              01 Application Canvas
+              01 应用画布
             </button>
             <button
               onClick={() => setCurrentTab('workflow')}
               className={`border px-3 py-2 transition-colors ${currentTab === 'workflow' ? 'border-[#111111] bg-[#111111] text-[#F7F4EF]' : 'border-[#D8D1C7] bg-white/35 hover:border-[#111111] hover:text-[#111111]'}`}
             >
-              02 ComfyFlow Graph
+              02 工作流图谱
             </button>
             <div className="ml-0 flex items-center gap-2 lg:ml-4">
               <CreditBadge balance={credits} />
               <div className="border border-[#111111] bg-[#111111] px-3 py-2 text-[#F7F4EF]">
-                VERCEL LIVE
+                云端已连接
               </div>
             </div>
           </div>
@@ -114,22 +114,22 @@ export default function RunningHubInspiredPage() {
                 <div className="mb-10 flex items-center gap-4 font-mono text-[9px] uppercase tracking-[0.34em] text-[#8A8175]">
                   <span>PromptLens Studio</span>
                   <span className="h-px w-16 bg-[#111111]/30" />
-                  <span>{currentTab === 'app' ? 'Canvas Mode' : 'Graph Mode'}</span>
+                  <span>{currentTab === 'app' ? '画布模式' : '图谱模式'}</span>
                 </div>
                 <h1 className="max-w-4xl font-serif text-6xl font-light leading-[0.86] tracking-[-0.075em] text-[#111111] md:text-8xl xl:text-[8.75rem]">
-                  Cinema-grade prompt control.
+                  电影级提示词控制台
                 </h1>
                 <p className="mt-8 max-w-xl text-sm leading-7 text-[#6A6258] md:text-base">
-                  A quiet production surface for image direction, node logic and frame-level rebuilds — designed like a studio console, not a dashboard.
+                  用一个安静、克制的创作工作台，统一管理画面方向、节点逻辑与分镜级局部重绘。
                 </p>
               </div>
 
               <div className="mt-12 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-[#111111]/10 pt-5 font-mono text-[9px] uppercase tracking-[0.22em] text-[#8A8175]">
                 {[
-                  ['Mode', currentTab === 'app' ? 'Canvas' : 'Graph'],
-                  ['Node', activeNode.status],
-                  ['Shot', selectedShotNumber || 'None'],
-                  ['Credit', `${credits.toLocaleString()} CRS`],
+                  ['模式', currentTab === 'app' ? '画布' : '图谱'],
+                  ['节点', activeNode.status],
+                  ['镜头', selectedShotNumber || '无'],
+                  ['算力', `${credits.toLocaleString()} CRS`],
                 ].map(([label, value]) => (
                   <div key={label}>
                     <span className="mr-2 text-[#B0A599]">{label}</span>
@@ -144,8 +144,8 @@ export default function RunningHubInspiredPage() {
               <div className="absolute inset-0 scanlines opacity-45" />
               <div className="relative z-10 flex h-full flex-col">
                 <div className="mb-4 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.26em] text-white/38">
-                  <span>Hero Render Preview</span>
-                  <span className="flex items-center gap-2 text-emerald-300/85"><span className="h-1.5 w-1.5 bg-emerald-400" /> Live</span>
+                  <span>主渲染预览</span>
+                  <span className="flex items-center gap-2 text-emerald-300/85"><span className="h-1.5 w-1.5 bg-emerald-400" /> 在线</span>
                 </div>
 
                 <div className="relative flex-1 overflow-hidden border border-white/10 bg-black/20 p-5">
@@ -154,14 +154,14 @@ export default function RunningHubInspiredPage() {
                   <div className="absolute bottom-4 left-4 h-8 w-8 border-b border-l border-white/28" />
                   <div className="absolute bottom-4 right-4 h-8 w-8 border-b border-r border-white/28" />
                   <div className="absolute left-8 top-8 max-w-xs glass-panel bg-white/[0.08] p-4 text-[#F7F4EF]">
-                    <div className="font-mono text-[8px] uppercase tracking-[0.24em] text-white/36">Active Node</div>
+                    <div className="font-mono text-[8px] uppercase tracking-[0.24em] text-white/36">当前节点</div>
                     <div className="mt-2 text-sm font-semibold text-white/90">{activeNode.title}</div>
                     <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-white/44">{activeNode.meta}</div>
                   </div>
                   <div className="absolute bottom-8 right-8 w-44 border border-white/12 bg-black/28 p-4 font-mono uppercase tracking-[0.2em]">
-                    <div className="text-[8px] text-white/32">Selected Frame</div>
+                    <div className="text-[8px] text-white/32">当前镜头</div>
                     <div className="mt-3 font-serif text-4xl font-light italic text-white">{selectedShotNumber || '—'}</div>
-                    <div className="mt-2 text-[8px] text-white/35">{processingShotNumber ? 'Processing' : `${rebuiltShots.length} rebuilt`}</div>
+                    <div className="mt-2 text-[8px] text-white/35">{processingShotNumber ? '处理中' : `${rebuiltShots.length} 个已重绘`}</div>
                   </div>
                   <div className="absolute inset-x-8 bottom-8 hidden h-px bg-white/12 md:block" />
                   <div className="absolute inset-y-8 left-1/2 hidden w-px bg-white/10 md:block" />
@@ -169,9 +169,9 @@ export default function RunningHubInspiredPage() {
 
                 <div className="mt-4 flex flex-wrap justify-between gap-4 border-t border-white/10 pt-4 font-mono text-[8px] uppercase tracking-[0.22em] text-white/32">
                   <span>{mockStoryboardData.story_name}</span>
-                  <span>{mockStoryboardData.total_shots} cuts</span>
+                  <span>{mockStoryboardData.total_shots} 个镜头</span>
                   <span>{mockStoryboardData.total_duration}</span>
-                  <span>{processingShotNumber ? `Processing ${processingShotNumber}` : 'Preview locked'}</span>
+                  <span>{processingShotNumber ? `正在处理 ${processingShotNumber}` : '预览已锁定'}</span>
                 </div>
               </div>
             </aside>
@@ -182,8 +182,8 @@ export default function RunningHubInspiredPage() {
           {currentTab === 'workflow' && (
             <aside className="border-b border-[#111111]/10 bg-[#EEE8DE]/72 p-5 lg:w-[34%] lg:border-b-0 lg:border-r lg:p-6">
               <div className="mb-5 flex items-center justify-between border-b border-[#111111]/15 pb-4 font-mono text-[10px] uppercase tracking-[0.22em]">
-                <span>Node Workflow</span>
-                <span className="text-[#8A8175]">Knot connected</span>
+                <span>节点工作流</span>
+                <span className="text-[#8A8175]">节点已连接</span>
               </div>
               <div className="relative space-y-4">
                 <div className="absolute left-[13px] top-7 h-[calc(100%-3.5rem)] w-px bg-[#111111]/18" />
@@ -210,7 +210,7 @@ export default function RunningHubInspiredPage() {
                 ))}
               </div>
               <div className="mt-5 border border-[#D8D1C7] bg-[#F7F4EF]/70 p-4">
-                <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#8A8175]">Selected Node</div>
+                <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#8A8175]">当前节点</div>
                 <div className="mt-2 text-sm font-semibold">{activeNode.title}</div>
                 <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-[#8A8175]">{activeNode.meta}</div>
               </div>

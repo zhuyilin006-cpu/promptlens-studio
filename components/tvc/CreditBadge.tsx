@@ -14,7 +14,7 @@ export default function CreditBadge({ balance }: CreditBadgeProps) {
         <span className="absolute inline-flex h-full w-full animate-ping bg-emerald-400 opacity-60" />
         <span className="relative inline-flex h-1.5 w-1.5 bg-emerald-500" />
       </span>
-      <span>Compute</span>
+      <span>算力</span>
       <span className="text-[#C2B6A7]">/</span>
       <motion.span
         key={balance}
