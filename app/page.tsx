@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import FilmGridStoryboard from '@/components/tvc/FilmGridStoryboard';
 import CreditBadge from '@/components/tvc/CreditBadge';
 import { mockStoryboardData } from '@/data/mockStoryboard';
@@ -35,6 +35,34 @@ const workflowNodes = [
 export default function RunningHubInspiredPage() {
   const [credits, setCredits] = useState(48250);
   const [currentTab, setCurrentTab] = useState<'app' | 'workflow'>('app');
+  const [selectedShotNumber, setSelectedShotNumber] = useState(mockStoryboardData.shots[0]?.shot_number ?? '');
+  const [activeNodeLabel, setActiveNodeLabel] = useState(workflowNodes[0].label);
+  const [processingShotNumber, setProcessingShotNumber] = useState<string | null>(null);
+  const [rebuiltShots, setRebuiltShots] = useState<string[]>([]);
+
+  const activeNode = useMemo(
+    () => workflowNodes.find((node) => node.label === activeNodeLabel) ?? workflowNodes[0],
+    [activeNodeLabel]
+  );
+
+  const handleSelectShot = (shotNumber: string) => {
+    setSelectedShotNumber(shotNumber);
+  };
+
+  const handleExecuteShot = (shotNumber: string) => {
+    if (credits <= 0 || processingShotNumber) {
+      return;
+    }
+
+    setSelectedShotNumber(shotNumber);
+    setProcessingShotNumber(shotNumber);
+    setCredits((prev) => Math.max(0, prev - 12));
+
+    window.setTimeout(() => {
+      setProcessingShotNumber(null);
+      setRebuiltShots((prev) => (prev.includes(shotNumber) ? prev : [...prev, shotNumber]));
+    }, 900);
+  };
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#F7F4EF] text-[#111111]">
@@ -99,9 +127,9 @@ export default function RunningHubInspiredPage() {
               <div className="mt-10 grid grid-cols-2 border border-[#111111]/12 bg-[#F7F4EF]/72 font-mono text-[9px] uppercase tracking-[0.2em] text-[#8A8175] md:grid-cols-4">
                 {[
                   ['MODE', currentTab === 'app' ? 'CANVAS' : 'GRAPH'],
-                  ['MODEL', 'LOVART V1'],
-                  ['FRAMES', `${mockStoryboardData.total_shots} CUTS`],
-                  ['STATUS', 'LIVE SYNC'],
+                  ['NODE', activeNode.status],
+                  ['SHOT', selectedShotNumber || 'NONE'],
+                  ['CREDIT', `${credits.toLocaleString()} CRS`],
                 ].map(([label, value], index) => (
                   <div key={label} className={`p-3 ${index < 3 ? 'border-b border-[#111111]/10 md:border-b-0 md:border-r' : ''}`}>
                     <span className="block text-[8px] text-[#A49A8F]">{label}</span>
@@ -129,25 +157,35 @@ export default function RunningHubInspiredPage() {
                     <div className="font-mono text-[9px] uppercase tracking-[0.26em] text-white/35">RunningHub Node Graph</div>
                     <div className="mx-auto grid w-[82%] grid-cols-2 gap-3 font-mono text-[9px] uppercase tracking-[0.14em] text-white/62">
                       {workflowNodes.map((node) => (
-                        <div key={node.label} className="border border-white/12 bg-white/[0.03] p-3">
+                        <button
+                          key={node.label}
+                          onClick={() => setActiveNodeLabel(node.label)}
+                          className={`border p-3 text-left transition-colors ${activeNodeLabel === node.label ? 'border-white/55 bg-white/[0.12] text-white' : 'border-white/12 bg-white/[0.03] hover:border-white/32'}`}
+                        >
                           <div className="mb-2 text-white/28">{node.label}</div>
                           <div className="truncate text-white/80">{node.status}</div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                     <div className="flex justify-between font-mono text-[8px] uppercase tracking-[0.24em] text-white/28">
                       <span>{mockStoryboardData.story_name}</span>
-                      <span>{mockStoryboardData.total_duration}</span>
+                      <span>{processingShotNumber ? `PROCESSING ${processingShotNumber}` : mockStoryboardData.total_duration}</span>
                     </div>
                   </div>
+                </div>
+
+                <div className="mb-4 border border-white/10 bg-white/[0.03] p-4">
+                  <div className="font-mono text-[8px] uppercase tracking-[0.24em] text-white/28">Active Node Detail</div>
+                  <div className="mt-2 text-sm font-semibold text-white/86">{activeNode.title}</div>
+                  <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-white/38">{activeNode.meta}</div>
                 </div>
 
                 <div className="mt-auto grid grid-cols-2 border border-white/10 font-mono text-[9px] uppercase tracking-[0.2em] text-white/42">
                   {[
                     ['PIPELINE', 'ACTIVE'],
                     ['CUTS', `${mockStoryboardData.total_shots}`],
-                    ['DURATION', mockStoryboardData.total_duration],
-                    ['CREDIT', `${credits.toLocaleString()} CRS`],
+                    ['SELECTED', selectedShotNumber || 'NONE'],
+                    ['REBUILT', `${rebuiltShots.length}`],
                   ].map(([label, value]) => (
                     <div key={label} className="border border-white/10 p-4">
                       <span className="block text-[8px] text-white/25">{label}</span>
@@ -171,19 +209,30 @@ export default function RunningHubInspiredPage() {
                 <div className="absolute left-[13px] top-7 h-[calc(100%-3.5rem)] w-px bg-[#111111]/18" />
                 {workflowNodes.map((node) => (
                   <div key={node.label} className="relative flex gap-4">
-                    <div className="relative z-10 mt-5 h-7 w-7 border border-[#111111] bg-[#F7F4EF]">
-                      <span className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 bg-[#111111]" />
-                    </div>
-                    <div className="flex-1 border border-[#D8D1C7] bg-[#F7F4EF]/78 p-4 shadow-[8px_8px_0_rgba(17,17,17,0.03)]">
-                      <div className="flex items-center justify-between gap-3 font-mono text-[9px] uppercase tracking-[0.2em] text-[#8A8175]">
+                    <button
+                      onClick={() => setActiveNodeLabel(node.label)}
+                      className={`relative z-10 mt-5 h-7 w-7 border transition-colors ${activeNodeLabel === node.label ? 'border-[#111111] bg-[#111111]' : 'border-[#111111] bg-[#F7F4EF]'}`}
+                    >
+                      <span className={`absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 ${activeNodeLabel === node.label ? 'bg-[#F7F4EF]' : 'bg-[#111111]'}`} />
+                    </button>
+                    <button
+                      onClick={() => setActiveNodeLabel(node.label)}
+                      className={`flex-1 border p-4 text-left shadow-[8px_8px_0_rgba(17,17,17,0.03)] transition-colors ${activeNodeLabel === node.label ? 'border-[#111111] bg-[#111111] text-[#F7F4EF]' : 'border-[#D8D1C7] bg-[#F7F4EF]/78 hover:border-[#111111]'}`}
+                    >
+                      <div className={`flex items-center justify-between gap-3 font-mono text-[9px] uppercase tracking-[0.2em] ${activeNodeLabel === node.label ? 'text-[#F7F4EF]/52' : 'text-[#8A8175]'}`}>
                         <span>{node.label}</span>
-                        <span className="border border-[#111111]/20 px-1.5 py-0.5 text-[#111111]">{node.status}</span>
+                        <span className={`border px-1.5 py-0.5 ${activeNodeLabel === node.label ? 'border-[#F7F4EF]/20 text-[#F7F4EF]' : 'border-[#111111]/20 text-[#111111]'}`}>{node.status}</span>
                       </div>
                       <div className="mt-3 text-sm font-semibold tracking-tight">{node.title}</div>
-                      <div className="mt-1 font-mono text-[10px] text-[#8A8175]">{node.meta}</div>
-                    </div>
+                      <div className={`mt-1 font-mono text-[10px] ${activeNodeLabel === node.label ? 'text-[#F7F4EF]/48' : 'text-[#8A8175]'}`}>{node.meta}</div>
+                    </button>
                   </div>
                 ))}
+              </div>
+              <div className="mt-5 border border-[#D8D1C7] bg-[#F7F4EF]/70 p-4">
+                <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#8A8175]">Selected Node</div>
+                <div className="mt-2 text-sm font-semibold">{activeNode.title}</div>
+                <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-[#8A8175]">{activeNode.meta}</div>
               </div>
             </aside>
           )}
@@ -191,7 +240,11 @@ export default function RunningHubInspiredPage() {
           <div className="flex-1">
             <FilmGridStoryboard
               data={mockStoryboardData}
-              onExecuteAction={() => setCredits((prev) => Math.max(0, prev - 12))}
+              selectedShotNumber={selectedShotNumber}
+              processingShotNumber={processingShotNumber}
+              rebuiltShots={rebuiltShots}
+              onSelectShot={handleSelectShot}
+              onExecuteAction={handleExecuteShot}
             />
           </div>
         </section>
