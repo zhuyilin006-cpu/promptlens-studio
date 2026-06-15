@@ -66,71 +66,81 @@ export default function FilmGridStoryboard({
   };
 
   return (
-    <section className="w-full bg-[#F7F4EF] px-5 py-6 lg:px-8 lg:py-8">
-      <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_24rem]">
-        <div className="border border-[#111111]/10 bg-[#EFE8DD]/64 p-4 lg:p-5">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="mb-3 flex items-center gap-3 font-mono text-[9px] uppercase tracking-[0.28em] text-[#8A8175]">
-                <span className="h-px w-8 bg-[#111111]" />
-                PromptLens Studio / Generative Pipeline
-              </div>
-              <h2 className="font-serif text-4xl font-light leading-none tracking-[-0.035em] text-[#111111] md:text-5xl">
-                {data.story_name}
-              </h2>
-              <p className="mt-3 max-w-xl text-xs leading-6 tracking-wide text-[#6F665C]">
-                {data.one_line_theme}
-              </p>
-            </div>
-
-            <div className="grid min-w-full grid-cols-2 border border-[#D8D1C7] bg-[#F7F4EF] font-mono text-[10px] uppercase tracking-[0.18em] text-[#8A8175] sm:min-w-[28rem]">
-              <div className="border-b border-r border-[#D8D1C7] p-3">
-                <span className="block text-[8px] text-[#A49A8F]">Duration</span>
-                <strong className="mt-2 block text-[#111111]">{data.total_duration}</strong>
-              </div>
-              <div className="border-b border-[#D8D1C7] p-3">
-                <span className="block text-[8px] text-[#A49A8F]">Storyboard</span>
-                <strong className="mt-2 block text-[#111111]">{data.total_shots} Cuts</strong>
-              </div>
-              <div className="border-r border-[#D8D1C7] p-3">
-                <span className="block text-[8px] text-[#A49A8F]">Pacing</span>
-                <strong className="mt-2 block truncate text-[#111111]">{data.pacing}</strong>
-              </div>
-              <div className="p-3">
-                <span className="block text-[8px] text-[#A49A8F]">Visual Style</span>
-                <strong className="mt-2 block truncate text-[#111111]">{data.visual_style}</strong>
-              </div>
-            </div>
+    <section className="w-full bg-[#F5F1EA] px-4 py-8 lg:px-8 lg:py-10">
+      <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <div className="mb-4 flex items-center gap-3 font-mono text-[9px] uppercase tracking-[0.3em] text-[#8A8175]">
+            <span className="h-px w-10 bg-[#111111]/40" />
+            Storyboard Surface
           </div>
+          <h2 className="font-serif text-5xl font-light leading-none tracking-[-0.055em] text-[#111111] md:text-6xl">
+            {data.story_name}
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-[#6A6258]">{data.one_line_theme}</p>
+        </div>
+
+        <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-[#111111]/10 pt-4 font-mono text-[9px] uppercase tracking-[0.2em] text-[#8A8175] lg:border-t-0 lg:pt-0">
+          <span><b className="mr-2 text-[#111111]">{data.total_duration}</b>duration</span>
+          <span><b className="mr-2 text-[#111111]">{data.total_shots}</b>cuts</span>
+          <span><b className="mr-2 text-[#111111]">{rebuiltShots.length}</b>rebuilt</span>
+          <span>{processingShotNumber ? `Processing ${processingShotNumber}` : 'Preview locked'}</span>
+        </div>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1fr_19rem]">
+        <div className="glass-panel p-3 lg:p-5">
+          <motion.div
+            className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {data.shots.map((shot: ShotDetail, index: number) => (
+              <ShotCard
+                key={shot.shot_number}
+                shot={shot}
+                index={index}
+                selected={selectedShotNumber === shot.shot_number}
+                processing={processingShotNumber === shot.shot_number}
+                rebuilt={rebuiltShots.includes(shot.shot_number)}
+                onSelect={() => onSelectShot(shot.shot_number)}
+                onAction={() => onExecuteAction(shot.shot_number)}
+              />
+            ))}
+          </motion.div>
         </div>
 
         {selectedShot && (
-          <aside className="border border-[#111111]/12 bg-[#111111] p-4 text-[#F7F4EF]">
-            <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-3 font-mono text-[9px] uppercase tracking-[0.22em] text-white/38">
-              <span>Selected Shot</span>
+          <aside className="glass-panel sticky top-24 h-fit p-4 text-[#111111]">
+            <div className="mb-5 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.22em] text-[#8A8175]">
+              <span>Inspector</span>
               <span>{processingShotNumber === selectedShot.shot_number ? 'Processing' : rebuiltShots.includes(selectedShot.shot_number) ? 'Rebuilt' : 'Ready'}</span>
             </div>
-            <div className="font-serif text-2xl font-light italic leading-tight">{selectedShot.shot_title}</div>
-            <div className="mt-3 grid grid-cols-2 gap-px bg-white/10 font-mono text-[9px] uppercase tracking-[0.16em] text-white/45">
+            <div className="border-b border-[#111111]/10 pb-4">
+              <div className="font-mono text-[9px] uppercase tracking-[0.24em] text-[#A49A8F]">Shot {selectedShot.shot_number}</div>
+              <h3 className="mt-2 font-serif text-3xl font-light italic leading-none tracking-[-0.03em]">
+                {selectedShot.shot_title}
+              </h3>
+            </div>
+            <div className="mt-4 space-y-3 font-mono text-[9px] uppercase tracking-[0.18em] text-[#8A8175]">
               {[
-                ['Shot', selectedShot.shot_number],
                 ['Time', selectedShot.time_code],
                 ['Camera', selectedShot.camera_movement],
                 ['Transition', selectedShot.transition],
               ].map(([label, value]) => (
-                <div key={label} className="bg-[#111111] p-2">
-                  <span className="block text-white/25">{label}</span>
-                  <strong className="mt-1 block text-white/78">{value}</strong>
+                <div key={label} className="flex justify-between gap-4 border-b border-[#111111]/7 pb-2">
+                  <span>{label}</span>
+                  <strong className="text-right font-medium text-[#111111]">{value}</strong>
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-[11px] leading-5 text-white/64">{selectedShot.visual_description}</p>
-            <div className="mt-3 border-t border-white/10 pt-3 text-[10px] italic leading-5 text-[#C6A36C]">
+            <p className="mt-5 text-[11px] leading-6 text-[#6A6258]">{selectedShot.visual_description}</p>
+            <div className="mt-5 border-t border-[#111111]/10 pt-4 text-[10px] italic leading-5 text-[#7B5A32]">
               {selectedShot.audio_sfx}
             </div>
             <button
               onClick={copySelectedPrompt}
-              className="mt-4 w-full border border-white/18 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.18em] text-white/80 transition-colors hover:border-white/42 hover:bg-white/[0.06]"
+              className="mt-5 w-full bg-[#111111] px-3 py-2.5 font-mono text-[9px] uppercase tracking-[0.18em] text-[#F5F1EA] transition-colors hover:bg-[#2A2A2A]"
             >
               {detailCopyState === 'copied' ? 'Copied' : detailCopyState === 'failed' ? 'Copy Failed' : 'Copy Full Prompt'}
             </button>
@@ -138,42 +148,15 @@ export default function FilmGridStoryboard({
         )}
       </div>
 
-      <div className="border border-[#111111]/12 bg-[#FBF8F1] p-3 shadow-[0_24px_80px_rgba(17,17,17,0.06)] lg:p-5">
-        <div className="mb-4 flex items-center justify-between border-b border-[#111111]/10 pb-3 font-mono text-[9px] uppercase tracking-[0.24em] text-[#8A8175]">
-          <span>Storyboard Board / 2 × 4 Frame Matrix</span>
-          <span>{processingShotNumber ? `Processing Shot ${processingShotNumber}` : 'Output preview locked'}</span>
-        </div>
-
-        <motion.div
-          className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        >
-          {data.shots.map((shot: ShotDetail, index: number) => (
-            <ShotCard
-              key={shot.shot_number}
-              shot={shot}
-              index={index}
-              selected={selectedShotNumber === shot.shot_number}
-              processing={processingShotNumber === shot.shot_number}
-              rebuilt={rebuiltShots.includes(shot.shot_number)}
-              onSelect={() => onSelectShot(shot.shot_number)}
-              onAction={() => onExecuteAction(shot.shot_number)}
-            />
-          ))}
-        </motion.div>
-      </div>
-
-      <footer className="mt-8 grid grid-cols-1 border border-[#D8D1C7] bg-[#111111] text-[#F7F4EF] md:grid-cols-3">
+      <footer className="mt-8 grid grid-cols-1 gap-px overflow-hidden bg-[#111111]/10 text-[#111111] md:grid-cols-3">
         {[
           ['VIDEO MAINLINE', data.video_mainline],
           ['CORE TRANSITIONS', data.core_transitions],
           ['VISUAL HOOK', data.memory_point],
-        ].map(([label, value], index) => (
-          <div key={label} className={`p-5 ${index < 2 ? 'border-b border-white/10 md:border-b-0 md:border-r' : ''}`}>
-            <h4 className="mb-3 font-mono text-[9px] uppercase tracking-[0.25em] text-white/38">{label}</h4>
-            <p className="text-xs leading-6 text-white/72">{value}</p>
+        ].map(([label, value]) => (
+          <div key={label} className="bg-[#F5F1EA]/90 p-5">
+            <h4 className="mb-3 font-mono text-[9px] uppercase tracking-[0.25em] text-[#8A8175]">{label}</h4>
+            <p className="text-xs leading-6 text-[#6A6258]">{value}</p>
           </div>
         ))}
       </footer>

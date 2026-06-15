@@ -107,91 +107,71 @@ export default function RunningHubInspiredPage() {
       </nav>
 
       <main className="relative z-10">
-        <section className="border-b border-[#111111]/10 px-4 py-5 lg:px-8 lg:py-8">
-          <div className="grid min-h-[34rem] overflow-hidden border border-[#111111]/12 bg-[#EDE5D8] lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="hero-noise corner-frame flex flex-col justify-between p-6 text-[#111111] lg:p-10">
+        <section className="px-4 py-6 lg:px-8 lg:py-10">
+          <div className="grid min-h-[36rem] gap-5 lg:grid-cols-[0.92fr_1.08fr]">
+            <div className="glass-panel corner-frame flex flex-col justify-between p-7 text-[#111111] lg:p-12">
               <div>
-                <div className="mb-8 flex flex-wrap items-center gap-3 font-mono text-[9px] uppercase tracking-[0.28em] text-[#7C7165]">
-                  <span className="border border-[#111111]/20 bg-[#F7F4EF]/60 px-2 py-1">RunningHub split UI</span>
-                  <span className="h-px w-12 bg-[#111111]/45" />
-                  <span>Lovart cinematic protocol</span>
+                <div className="mb-10 flex items-center gap-4 font-mono text-[9px] uppercase tracking-[0.34em] text-[#8A8175]">
+                  <span>PromptLens Studio</span>
+                  <span className="h-px w-16 bg-[#111111]/30" />
+                  <span>{currentTab === 'app' ? 'Canvas Mode' : 'Graph Mode'}</span>
                 </div>
-                <h1 className="max-w-5xl font-serif text-6xl font-light leading-[0.82] tracking-[-0.065em] text-[#111111] md:text-8xl xl:text-9xl">
-                  Visual command desk for AI fashion films.
+                <h1 className="max-w-4xl font-serif text-6xl font-light leading-[0.86] tracking-[-0.075em] text-[#111111] md:text-8xl xl:text-[8.75rem]">
+                  Cinema-grade prompt control.
                 </h1>
-                <p className="mt-8 max-w-2xl text-sm leading-7 text-[#62594F] md:text-base">
-                  Convert prompt strategy, node workflow and frame-level rebuild controls into one restrained production surface for cinematic storyboard operations.
+                <p className="mt-8 max-w-xl text-sm leading-7 text-[#6A6258] md:text-base">
+                  A quiet production surface for image direction, node logic and frame-level rebuilds — designed like a studio console, not a dashboard.
                 </p>
               </div>
 
-              <div className="mt-10 grid grid-cols-2 border border-[#111111]/12 bg-[#F7F4EF]/72 font-mono text-[9px] uppercase tracking-[0.2em] text-[#8A8175] md:grid-cols-4">
+              <div className="mt-12 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-[#111111]/10 pt-5 font-mono text-[9px] uppercase tracking-[0.22em] text-[#8A8175]">
                 {[
-                  ['MODE', currentTab === 'app' ? 'CANVAS' : 'GRAPH'],
-                  ['NODE', activeNode.status],
-                  ['SHOT', selectedShotNumber || 'NONE'],
-                  ['CREDIT', `${credits.toLocaleString()} CRS`],
-                ].map(([label, value], index) => (
-                  <div key={label} className={`p-3 ${index < 3 ? 'border-b border-[#111111]/10 md:border-b-0 md:border-r' : ''}`}>
-                    <span className="block text-[8px] text-[#A49A8F]">{label}</span>
-                    <strong className="mt-2 block text-[#111111]">{value}</strong>
+                  ['Mode', currentTab === 'app' ? 'Canvas' : 'Graph'],
+                  ['Node', activeNode.status],
+                  ['Shot', selectedShotNumber || 'None'],
+                  ['Credit', `${credits.toLocaleString()} CRS`],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <span className="mr-2 text-[#B0A599]">{label}</span>
+                    <strong className="text-[#111111]">{value}</strong>
                   </div>
                 ))}
               </div>
             </div>
 
-            <aside className="relative overflow-hidden bg-[#111111] p-5 text-[#F7F4EF] console-glow lg:p-7">
-              <div className="absolute inset-0 scanlines opacity-60" />
-              <div className="absolute inset-0 studio-grid opacity-[0.07]" />
+            <aside className="relative overflow-hidden bg-[#111111] p-4 text-[#F7F4EF] console-glow lg:p-6">
+              <div className="absolute inset-0 render-surface soft-vignette" />
+              <div className="absolute inset-0 scanlines opacity-45" />
               <div className="relative z-10 flex h-full flex-col">
-                <div className="mb-6 flex items-center justify-between border-b border-white/10 pb-4 font-mono text-[9px] uppercase tracking-[0.24em] text-white/42">
-                  <span>Production Monitor</span>
-                  <span className="flex items-center gap-2 text-emerald-300"><span className="h-1.5 w-1.5 bg-emerald-400" /> Online</span>
+                <div className="mb-4 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.26em] text-white/38">
+                  <span>Hero Render Preview</span>
+                  <span className="flex items-center gap-2 text-emerald-300/85"><span className="h-1.5 w-1.5 bg-emerald-400" /> Live</span>
                 </div>
 
-                <div className="relative mb-6 aspect-[16/10] border border-white/12 bg-black/35 p-4">
-                  <div className="absolute left-3 top-3 h-5 w-5 border-l border-t border-white/35" />
-                  <div className="absolute right-3 top-3 h-5 w-5 border-r border-t border-white/35" />
-                  <div className="absolute bottom-3 left-3 h-5 w-5 border-b border-l border-white/35" />
-                  <div className="absolute bottom-3 right-3 h-5 w-5 border-b border-r border-white/35" />
-                  <div className="flex h-full flex-col justify-between">
-                    <div className="font-mono text-[9px] uppercase tracking-[0.26em] text-white/35">RunningHub Node Graph</div>
-                    <div className="mx-auto grid w-[82%] grid-cols-2 gap-3 font-mono text-[9px] uppercase tracking-[0.14em] text-white/62">
-                      {workflowNodes.map((node) => (
-                        <button
-                          key={node.label}
-                          onClick={() => setActiveNodeLabel(node.label)}
-                          className={`border p-3 text-left transition-colors ${activeNodeLabel === node.label ? 'border-white/55 bg-white/[0.12] text-white' : 'border-white/12 bg-white/[0.03] hover:border-white/32'}`}
-                        >
-                          <div className="mb-2 text-white/28">{node.label}</div>
-                          <div className="truncate text-white/80">{node.status}</div>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex justify-between font-mono text-[8px] uppercase tracking-[0.24em] text-white/28">
-                      <span>{mockStoryboardData.story_name}</span>
-                      <span>{processingShotNumber ? `PROCESSING ${processingShotNumber}` : mockStoryboardData.total_duration}</span>
-                    </div>
+                <div className="relative flex-1 overflow-hidden border border-white/10 bg-black/20 p-5">
+                  <div className="absolute left-4 top-4 h-8 w-8 border-l border-t border-white/28" />
+                  <div className="absolute right-4 top-4 h-8 w-8 border-r border-t border-white/28" />
+                  <div className="absolute bottom-4 left-4 h-8 w-8 border-b border-l border-white/28" />
+                  <div className="absolute bottom-4 right-4 h-8 w-8 border-b border-r border-white/28" />
+                  <div className="absolute left-8 top-8 max-w-xs glass-panel bg-white/[0.08] p-4 text-[#F7F4EF]">
+                    <div className="font-mono text-[8px] uppercase tracking-[0.24em] text-white/36">Active Node</div>
+                    <div className="mt-2 text-sm font-semibold text-white/90">{activeNode.title}</div>
+                    <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-white/44">{activeNode.meta}</div>
                   </div>
+                  <div className="absolute bottom-8 right-8 w-44 border border-white/12 bg-black/28 p-4 font-mono uppercase tracking-[0.2em]">
+                    <div className="text-[8px] text-white/32">Selected Frame</div>
+                    <div className="mt-3 font-serif text-4xl font-light italic text-white">{selectedShotNumber || '—'}</div>
+                    <div className="mt-2 text-[8px] text-white/35">{processingShotNumber ? 'Processing' : `${rebuiltShots.length} rebuilt`}</div>
+                  </div>
+                  <div className="absolute inset-x-8 bottom-8 hidden h-px bg-white/12 md:block" />
+                  <div className="absolute inset-y-8 left-1/2 hidden w-px bg-white/10 md:block" />
                 </div>
 
-                <div className="mb-4 border border-white/10 bg-white/[0.03] p-4">
-                  <div className="font-mono text-[8px] uppercase tracking-[0.24em] text-white/28">Active Node Detail</div>
-                  <div className="mt-2 text-sm font-semibold text-white/86">{activeNode.title}</div>
-                  <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-white/38">{activeNode.meta}</div>
-                </div>
-
-                <div className="mt-auto grid grid-cols-2 border border-white/10 font-mono text-[9px] uppercase tracking-[0.2em] text-white/42">
-                  {[
-                    ['PIPELINE', 'ACTIVE'],
-                    ['CUTS', `${mockStoryboardData.total_shots}`],
-                    ['SELECTED', selectedShotNumber || 'NONE'],
-                    ['REBUILT', `${rebuiltShots.length}`],
-                  ].map(([label, value]) => (
-                    <div key={label} className="border border-white/10 p-4">
-                      <span className="block text-[8px] text-white/25">{label}</span>
-                      <strong className="mt-2 block font-serif text-2xl font-light italic text-[#F7F4EF]">{value}</strong>
-                    </div>
-                  ))}
+                <div className="mt-4 flex flex-wrap justify-between gap-4 border-t border-white/10 pt-4 font-mono text-[8px] uppercase tracking-[0.22em] text-white/32">
+                  <span>{mockStoryboardData.story_name}</span>
+                  <span>{mockStoryboardData.total_shots} cuts</span>
+                  <span>{mockStoryboardData.total_duration}</span>
+                  <span>{processingShotNumber ? `Processing ${processingShotNumber}` : 'Preview locked'}</span>
                 </div>
               </div>
             </aside>
