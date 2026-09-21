@@ -98,6 +98,12 @@ export default function RunningHubInspiredPage() {
             </button>
             <div className="ml-0 flex items-center gap-2 lg:ml-4">
               <CreditBadge balance={credits} />
+              <a
+                href="/companion"
+                className="border border-[#111111] bg-white/35 px-3 py-2 transition-colors hover:bg-[#111111] hover:text-[#F7F4EF]"
+              >
+                情感搭子
+              </a>
               <div className="border border-[#111111] bg-[#111111] px-3 py-2 text-[#F7F4EF]">
                 云端已连接
               </div>

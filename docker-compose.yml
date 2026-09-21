@@ -1,0 +1,31 @@
+services:
+  app:
+    build: .
+    environment:
+      - VIDU_API_KEY=${VIDU_API_KEY}
+      - VIDU_HTTP_HOST=api.vidu.cn
+      - VIDU_WS_HOST=api.vidu.cn
+      - PORT=3000
+      - HOST=0.0.0.0
+    expose:
+      - "3000"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    environment:
+      - DOMAIN=${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
