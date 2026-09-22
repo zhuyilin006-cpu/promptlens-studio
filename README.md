@@ -85,3 +85,15 @@ docker compose down                        # 停止
 - `NEXT_PUBLIC_VIDU_MOCK` 在构建期注入，生产镜像默认关闭 Mock（走真实数字人）。
 - 已内置 PWA：手机浏览器打开后可「添加到主屏幕」，界面外壳离线可加载（真正对话仍需联网调用 Vidu）。
 
+## 免费托管：Render 一键蓝图
+
+仓库已含 `render.yaml`（Docker 部署，支持 WebSocket，送免费 `*.onrender.com` HTTPS 域名）。
+
+步骤：
+1. 登录 [Render](https://render.com)，New → Blueprint，选择本 GitHub 仓库。
+2. Render 读取 `render.yaml` 自动创建 Web 服务；在 `VIDU_API_KEY` 处填入你的 `vda_xxx`（标记为 secret，不入仓库）。
+3. 部署完成后访问 `https://<服务名>.onrender.com/companion`。
+
+注意：免费档实例在约 15 分钟无访问后会休眠，下次访问需冷启动数十秒；需要「不休眠常开」请用上面的 VPS 方案或 Oracle Always Free。
+
+

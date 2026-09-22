@@ -1,0 +1,18 @@
+# Render 蓝图：在 Render 点击 New → Blueprint，选择本仓库即可一键部署。
+# 使用自定义 Node 服务(server.mjs，含 WebSocket 代理)，Docker 构建。
+services:
+  - type: web
+    name: companion
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore          # 距中国较近，可按需改 oregon/frankfurt 等
+    healthCheckPath: /companion
+    autoDeploy: true
+    envVars:
+      - key: VIDU_API_KEY       # 敏感：在 Render 面板手动填写，不进仓库
+        sync: false
+      - key: VIDU_HTTP_HOST
+        value: api.vidu.cn
+      - key: VIDU_WS_HOST
+        value: api.vidu.cn
