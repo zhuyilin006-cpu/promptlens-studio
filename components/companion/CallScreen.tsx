@@ -30,20 +30,9 @@ export default function CallScreen({
 }) {
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-[#05070d]">
-      {/* 锐化滤镜：轻度 unsharp mask，提升 720P 上屏后的感知清晰度 */}
-      <svg className="absolute h-0 w-0" aria-hidden focusable="false">
-        <filter id="hf-sharpen" x="0" y="0" width="100%" height="100%">
-          <feConvolveMatrix
-            order="3"
-            preserveAlpha="true"
-            kernelMatrix="0 -0.6 0 -0.6 3.4 -0.6 0 -0.6 0"
-          />
-        </filter>
-      </svg>
       {/* 数字人视频（AliRTC 渲染到此元素）；未就绪时用占位形象铺底 */}
       <video
         ref={videoRef}
-        style={{ filter: remoteLive ? 'url(#hf-sharpen) contrast(1.06) saturate(1.05)' : undefined }}
         className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${remoteLive ? 'opacity-100' : 'opacity-0'}`}
         autoPlay
         playsInline
