@@ -5,6 +5,9 @@ import type { CreateLiveRequest, CreateLiveResponse } from '@/lib/vidu/types';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+/** data URI 字符数上限（解码后约 9MB），超出直接拒绝 */
+const MAX_DATA_URI_CHARS = 12 * 1024 * 1024;
+
 function badRequest(message: string) {
   return NextResponse.json({ code: 400, reason: 'BAD_REQUEST', message }, { status: 400 });
 }
@@ -25,6 +28,19 @@ export async function POST(req: NextRequest) {
   }
   if (!body.avatar.image_uri && !body.avatar.id) {
     return badRequest('avatar.image_uri 与 avatar.id 需二选一');
+  }
+  // 安全阀：内嵌 base64 图片过大时直接挡掉，避免打爆 Render 内存。
+  // Vidu 上限是解码后 <20MB（base64 串长约 26MB），这里留足余量。
+  const imageUri = body.avatar.image_uri || '';
+  if (imageUri.startsWith('data:') && imageUri.length > MAX_DATA_URI_CHARS) {
+    return NextResponse.json(
+      {
+        code: 413,
+        reason: 'IMAGE_TOO_LARGE',
+        message: `内嵌图片过大（约 ${Math.round(imageUri.length * 0.75 / 1024 / 1024)}MB），请压缩后重试`,
+      },
+      { status: 413 },
+    );
   }
 
   const { apiKey, httpHost, hasKey } = getServerConfig();
@@ -59,8 +75,13 @@ export async function POST(req: NextRequest) {
     // 规范化：live.id / rtc / token_expire_at，int64 一律字符串化
     const liveId = String(raw?.live?.id ?? raw?.live_id ?? raw?.id ?? '');
     const rtc = raw?.rtc ?? {};
+    // 首次用 image_uri 创建时，Vidu 会自动生成形象资产并在 live.avatar_id 回传。
+    // 前端缓存该 id 后，后续同形象通话可零图片传输。
+    const avatarId =
+      String(raw?.live?.avatar_id ?? raw?.avatar_id ?? raw?.live?.avatar?.id ?? '') || undefined;
     const normalized: CreateLiveResponse = {
       live_id: liveId,
+      avatar_id: avatarId,
       rtc: {
         token: String(rtc.token ?? ''),
         user_id: String(rtc.user_id ?? rtc.uid ?? ''),

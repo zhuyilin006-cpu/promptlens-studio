@@ -46,6 +46,12 @@ export interface CreateLiveResponse {
   rtc: RtcInfo;
   token_expire_at?: string;
   call_mode: CallMode;
+  /**
+   * 本次会话所用形象资产 id（Vidu 在只传 image_uri 时自动生成并回传）。
+   * 前端缓存后，后续通话只发 avatar.id 即可，不必再上传整张图片。
+   * 注意：Vidu 形象资产 90 天后自动删除，过期需重新上传。
+   */
+  avatar_id?: string;
   /** 标记是否为 Mock 会话 */
   mock?: boolean;
   raw?: unknown;

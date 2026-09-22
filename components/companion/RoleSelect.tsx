@@ -6,16 +6,25 @@ import { VIDU_VOICES } from '@/data/voices';
 import type { AvatarConfig } from '@/lib/vidu/types';
 import {
   deleteCompanion,
+  isAvatarUsable,
   listCompanions,
   newId,
   saveCompanion,
   type CompanionRecord,
 } from '@/lib/companion/history';
+import { readPresetAvatar } from '@/lib/companion/presetAvatar';
 
 export interface StartPayload {
   avatar: AvatarConfig;
   displayName: string;
   displayImage: string;
+  /**
+   * 自定义搭子的本地记录 id。首次通话成功后，服务端回传的形象资产 id 会写回这条记录，
+   * 之后该搭子即可零图片传输直接开聊。
+   */
+  companionId?: string;
+  /** 精选搭子的 id，用于回写形象资产缓存（预设形象走 URL，也能做到秒开） */
+  presetId?: string;
 }
 
 export default function RoleSelect({ onStart }: { onStart: (p: StartPayload) => void }) {
@@ -74,27 +83,49 @@ function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
   }, []);
 
   const startRecord = (rec: CompanionRecord) => {
+    const avatar: AvatarConfig = {
+      persona: rec.persona,
+      voice: rec.voice,
+      greeting_instruction: rec.greeting,
+    };
+    if (isAvatarUsable(rec)) {
+      // 已缓存形象资产 → 只发 id，本次通话零图片传输
+      avatar.id = rec.avatarId;
+    } else {
+      // 资产不存在/已临近失效 → 用库里的复用图兜底重传
+      avatar.image_uri = rec.image;
+    }
     onStart({
-      avatar: {
-        persona: rec.persona,
-        image_uri: rec.image,
-        voice: rec.voice,
-        greeting_instruction: rec.greeting,
-      },
+      avatar,
       displayName: rec.name,
       displayImage: rec.image,
+      companionId: rec.id,
     });
   };
 
-  const handleCreate = async (rec: Omit<CompanionRecord, 'id' | 'createdAt'>) => {
-    const full: CompanionRecord = { ...rec, id: newId(), createdAt: Date.now() };
+  const handleCreate = async (
+    rec: Omit<CompanionRecord, 'id' | 'createdAt'> & { uploadImage: string },
+  ) => {
+    const { uploadImage, ...rest } = rec;
+    const full: CompanionRecord = { ...rest, id: newId(), createdAt: Date.now() };
     try {
       await saveCompanion(full);
       await refresh();
     } catch {
       /* 存储失败不阻断通话 */
     }
-    startRecord(full);
+    // 首次通话必须传高清图，Vidu 据此生成形象资产；成功后 id 会回写这条记录
+    onStart({
+      avatar: {
+        persona: rec.persona,
+        image_uri: uploadImage || rec.image,
+        voice: rec.voice,
+        greeting_instruction: rec.greeting,
+      },
+      displayName: rec.name,
+      displayImage: rec.image,
+      companionId: full.id,
+    });
   };
 
   const handleDelete = async (id: string) => {
@@ -119,7 +150,14 @@ function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={rec.image} alt={rec.name} className="h-14 w-14 flex-none rounded-2xl object-cover ring-1 ring-white/15" />
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-sm font-semibold text-white">{rec.name}</h3>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="truncate text-sm font-semibold text-white">{rec.name}</h3>
+                    {isAvatarUsable(rec) && (
+                      <span className="flex-none rounded-full border border-cyan-400/30 bg-cyan-400/10 px-1.5 py-0.5 text-[10px] text-cyan-300">
+                        形象已缓存
+                      </span>
+                    )}
+                  </div>
                   <p className="truncate text-xs text-slate-400">{rec.persona}</p>
                 </div>
                 <button
@@ -158,18 +196,21 @@ function PresetList({ onStart }: { onStart: (p: StartPayload) => void }) {
 function PresetCard({ preset, onStart }: { preset: CompanionPreset; onStart: (p: StartPayload) => void }) {
   return (
     <button
-      onClick={() =>
+      onClick={() => {
+        const cached = readPresetAvatar(preset.id);
         onStart({
           avatar: {
             persona: preset.persona,
-            image_uri: preset.image,
+            // 命中缓存则只发 id，避免每次都让 Vidu 重新处理同一张图
+            ...(cached ? { id: cached } : { image_uri: preset.image }),
             voice: preset.voice,
             greeting_instruction: preset.greeting,
           },
           displayName: preset.name,
           displayImage: preset.image,
-        })
-      }
+          presetId: preset.id,
+        });
+      }}
       className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-400/40 via-indigo-400/30 to-fuchsia-400/30 p-[1px] text-left transition active:scale-[0.99]"
     >
       <div className="glass-dark flex items-center gap-4 rounded-3xl p-4">
@@ -193,14 +234,21 @@ function PresetCard({ preset, onStart }: { preset: CompanionPreset; onStart: (p:
 }
 
 // ---- 形象图清晰度策略 ----
-// 目标：尽量保留原图高分辨率（长边 3840 + JPEG 0.95），只有在体积过大时才逐级降质，
-// 避免"上传后变糊"。Vidu image_uri 支持 ≤50MB、解码后 <20MB（base64 串长 < ~26MB）。
-const AVATAR_MAX_EDGE = 3840;
-/** data URI（base64 串长）目标上限，保守留在 Vidu 解码 <20MB 限制内 */
-const AVATAR_MAX_BYTES = 18 * 1024 * 1024;
-/** 原图本身就在阈值内时直接透传，零重编码损失 */
-const AVATAR_PASSTHROUGH_BYTES = 10 * 1024 * 1024;
-const AVATAR_QUALITY_LADDER = [0.98, 0.95, 0.9, 0.82, 0.72];
+// 权衡后的档位：数字人输出上限是 720p(1280×720)，形象图长边 2048 已远超其采样需求，
+// 再高（如 3840）只会线性放大上传体积与失败率，却换不来可见的画面提升。
+// Vidu 限制：图片 ≤50MB、base64 解码后 <20MB。
+const AVATAR_MAX_EDGE = 2048;
+/** 上传 data URI（base64 串长）上限，保守留在 Vidu 解码 <20MB 限制内 */
+const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
+/** 原图尺寸与体积都在阈值内 → 直接透传，零重编码损失 */
+const AVATAR_PASSTHROUGH_BYTES = 2 * 1024 * 1024;
+const AVATAR_QUALITY_LADDER = [0.95, 0.9, 0.82, 0.72];
+
+/** 存库的复用图长边：够 UI 展示，也够形象资产失效时兜底重传 */
+const REUSE_MAX_EDGE = 1024;
+const REUSE_QUALITY = 0.85;
+/** iOS Safari 单 canvas 像素上限约 16.7M，超出会直接白屏 */
+const MAX_CANVAS_PIXELS = 16_000_000;
 
 interface ImageBitmapSource {
   width: number;
@@ -248,36 +296,69 @@ async function decodeImage(file: File): Promise<ImageBitmapSource> {
   };
 }
 
-async function fileToAvatar(file: File): Promise<{ uri: string; width: number; height: number }> {
+/** 把 data URI 长度换算成近似字节数（base64 每 4 字符约 3 字节） */
+function dataUriBytes(uri: string): number {
+  return Math.round(uri.length * 0.75);
+}
+
+/**
+ * 一次选图产出两份：
+ * - upload：长边 2048 的高清图，只在首次创建会话时传给 Vidu
+ * - reuse ：长边 1024 的复用图，入库保存，用于 UI 展示与形象资产失效时的兜底重传
+ * 这样 IndexedDB 里不会堆积十几 MB 的原图。
+ */
+async function fileToAvatar(
+  file: File,
+): Promise<{ upload: string; reuse: string; width: number; height: number }> {
   const src = await decodeImage(file);
   const longestEdge = Math.max(src.width, src.height);
 
-  // 原图尺寸与本身体积都在阈值内 → 直接透传，不做任何重采样/重编码
-  if (longestEdge <= AVATAR_MAX_EDGE && file.size <= AVATAR_PASSTHROUGH_BYTES) {
-    return { uri: await readAsDataUri(file), width: src.width, height: src.height };
-  }
+  // 原图尺寸与本身体积都在阈值内 → 直接透传，零重编码损失
+  const upload =
+    longestEdge <= AVATAR_MAX_EDGE && file.size <= AVATAR_PASSTHROUGH_BYTES
+      ? await readAsDataUri(file)
+      : await renderToDataUri(src, AVATAR_MAX_EDGE, AVATAR_QUALITY_LADDER, AVATAR_MAX_BYTES, file);
 
-  // 仅在超过长边上限时缩放，否则保持原始分辨率
-  const scale = longestEdge > AVATAR_MAX_EDGE ? AVATAR_MAX_EDGE / longestEdge : 1;
-  const w = Math.max(1, Math.round(src.width * scale));
-  const h = Math.max(1, Math.round(src.height * scale));
+  const reuse = await renderToDataUri(src, REUSE_MAX_EDGE, [REUSE_QUALITY], Infinity, file);
+  return { upload, reuse, width: src.width, height: src.height };
+}
+
+async function renderToDataUri(
+  src: ImageBitmapSource,
+  maxEdge: number,
+  ladder: number[],
+  maxBytes: number,
+  fallbackFile: File,
+): Promise<string> {
+  const longestEdge = Math.max(src.width, src.height);
+  const scale = longestEdge > maxEdge ? maxEdge / longestEdge : 1;
+  let w = Math.max(1, Math.round(src.width * scale));
+  let h = Math.max(1, Math.round(src.height * scale));
+
+  // iOS Safari 单 canvas 像素上限保护，超出会直接白屏
+  const pixels = w * h;
+  if (pixels > MAX_CANVAS_PIXELS) {
+    const s = Math.sqrt(MAX_CANVAS_PIXELS / pixels);
+    w = Math.max(1, Math.round(w * s));
+    h = Math.max(1, Math.round(h * s));
+  }
 
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
-  if (!ctx) return { uri: await readAsDataUri(file), width: src.width, height: src.height };
+  if (!ctx) return readAsDataUri(fallbackFile);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   src.draw(ctx, w, h);
 
   // 先用最高质量，超限再逐级降质，保证在体积约束内尽可能清晰
   let out = '';
-  for (const q of AVATAR_QUALITY_LADDER) {
+  for (const q of ladder) {
     out = canvas.toDataURL('image/jpeg', q);
-    if (out.length <= AVATAR_MAX_BYTES) break;
+    if (out.length <= maxBytes) break;
   }
-  return { uri: out, width: w, height: h };
+  return out;
 }
 
 function CustomForm({
@@ -288,7 +369,10 @@ function CustomForm({
     persona: string;
     voice: string;
     greeting: string;
+    /** 入库保存的复用图（长边 1024） */
     image: string;
+    /** 本次创建会话用的高清图（长边 2048），不入库存 */
+    uploadImage: string;
     width?: number;
     height?: number;
   }) => void;
@@ -298,6 +382,7 @@ function CustomForm({
   const [greeting, setGreeting] = useState('用温柔亲切的语气打个招呼。');
   const [voice, setVoice] = useState('Tina');
   const [image, setImage] = useState('');
+  const [uploadImage, setUploadImage] = useState('');
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   const [imageMeta, setImageMeta] = useState('');
   const [err, setErr] = useState('');
@@ -309,17 +394,20 @@ function CustomForm({
       return;
     }
     try {
-      const { uri, width, height } = await fileToAvatar(file);
-      setImage(uri);
+      const { upload, reuse, width, height } = await fileToAvatar(file);
+      setUploadImage(upload);
+      setImage(reuse);
       setDims({ w: width, h: height });
-      setImageMeta(`${width}×${height} · ${(uri.length * 0.75 / 1024 / 1024).toFixed(1)}MB`);
+      setImageMeta(
+        `${width}×${height} · 上传 ${(dataUriBytes(upload) / 1024 / 1024).toFixed(1)}MB`,
+      );
       setErr('');
     } catch (e) {
       setErr((e as Error).message);
     }
   };
 
-  const canStart = persona.trim().length > 0 && image.length > 0;
+  const canStart = persona.trim().length > 0 && uploadImage.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -332,14 +420,18 @@ function CustomForm({
         )}
         <input
           type="file"
-          accept="image/png,image/jpeg,image/webp"
+          accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
           className="hidden"
           onChange={(e) => onPick(e.target.files?.[0])}
         />
         <span className="text-xs text-cyan-300">
-          {image ? `重新选择${imageMeta ? ` · ${imageMeta}` : ''}` : '支持 PNG/JPG/WEBP，单人图'}
+          {image ? `重新选择${imageMeta ? ` · ${imageMeta}` : ''}` : '支持 JPG/PNG/WEBP/HEIC，单人图'}
         </span>
-        {image && <span className="text-[11px] text-slate-500">已按原图清晰度保留（长边上限 3840px）</span>}
+        {image && (
+          <span className="text-[11px] text-slate-500">
+            高清上传（长边上限 2048px）· 仅首次上传，之后自动复用形象资产
+          </span>
+        )}
       </label>
 
       <Field label="搭子名字">
@@ -366,6 +458,7 @@ function CustomForm({
             voice,
             greeting,
             image,
+            uploadImage,
             width: dims?.w,
             height: dims?.h,
           })

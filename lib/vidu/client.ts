@@ -25,6 +25,16 @@ export interface SessionCallbacks {
   onSubtitle?: (text: string, role: 'user' | 'bot', final: boolean) => void;
   onError: (message: string) => void;
   onHangup: (message: string) => void;
+  /**
+   * 会话创建成功后回传形象资产 id（仅首次用 image_uri 创建时才有）。
+   * 调用方应缓存它，后续同一形象的通话直接传 avatar.id，避免重复上传图片。
+   */
+  onAvatarId?: (avatarId: string) => void;
+  /**
+   * 使用 avatar.id 创建会话失败（通常是形象资产已过 90 天被删除）时触发。
+   * 调用方应清掉本地缓存的 id，下次自动回退到重新上传图片。
+   */
+  onAvatarIdInvalid?: () => void;
 }
 
 export class ViduCompanionSession {
@@ -62,6 +72,8 @@ export class ViduCompanionSession {
       }
       const body = await res.json();
       if (!res.ok) {
+        // 用形象资产 id 创建失败 → 多半是资产已过期被删，通知调用方清缓存以便下次重传
+        if (req.avatar.id) this.cb.onAvatarIdInvalid?.();
         this.cb.onError(body?.message || `创建会话失败(${res.status})`);
         this.cb.onStatus('error');
         return;
@@ -74,6 +86,8 @@ export class ViduCompanionSession {
     }
 
     this.liveId = data.live_id;
+    // 形象资产 id 回传：前端缓存后，下次同一形象无需再传图
+    if (data.avatar_id) this.cb.onAvatarId?.(data.avatar_id);
     await this.connectWs(data, req);
   }
 

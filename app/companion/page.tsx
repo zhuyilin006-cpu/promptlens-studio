@@ -6,6 +6,8 @@ import CallScreen, { type Subtitle } from '@/components/companion/CallScreen';
 import ControlBar from '@/components/companion/ControlBar';
 import TextComposer from '@/components/companion/TextComposer';
 import { ViduCompanionSession } from '@/lib/vidu/client';
+import { patchCompanion } from '@/lib/companion/history';
+import { clearPresetAvatar, writePresetAvatar } from '@/lib/companion/presetAvatar';
 import { DEFAULT_CALL_MODE } from '@/data/companionPersonas';
 import type { SessionStatus } from '@/lib/vidu/types';
 
@@ -69,6 +71,31 @@ export default function CompanionPage() {
         onSubtitle: (text, role) => addSubtitle(text, role),
         onError: (msg) => setBanner(msg),
         onHangup: (msg) => setBanner(msg),
+        // 首次用高清图创建成功后，Vidu 回传形象资产 id：写回本地记录，
+        // 之后这个搭子开聊只发 id，不再上传图片。
+        onAvatarId: (avatarId) => {
+          if (p.presetId) writePresetAvatar(p.presetId, avatarId);
+          if (!p.companionId) return;
+          void patchCompanion(p.companionId, {
+            avatarId,
+            avatarIdAt: Date.now(),
+          }).catch(() => {
+            /* 写回失败不影响本次通话 */
+          });
+        },
+        // 形象资产已过期（Vidu 90 天自动删除）→ 清掉缓存，下次自动回退到重新上传
+        onAvatarIdInvalid: () => {
+          if (p.presetId) clearPresetAvatar(p.presetId);
+          if (p.companionId) {
+            void patchCompanion(p.companionId, {
+              avatarId: undefined,
+              avatarIdAt: undefined,
+            }).catch(() => {
+              /* noop */
+            });
+          }
+          setBanner('形象缓存已失效，请返回重新开始以重新上传形象图');
+        },
       });
       sessionRef.current = session;
       await session.start({
