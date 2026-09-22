@@ -6,11 +6,14 @@ import { VIDU_VOICES } from '@/data/voices';
 import type { AvatarConfig } from '@/lib/vidu/types';
 import {
   deleteCompanion,
+  getStorageHealth,
   isAvatarUsable,
   listCompanions,
   newId,
+  requestPersistentStorage,
   saveCompanion,
   type CompanionRecord,
+  type StorageHealth,
 } from '@/lib/companion/history';
 import { readPresetAvatar } from '@/lib/companion/presetAvatar';
 
@@ -72,17 +75,24 @@ export default function RoleSelect({ onStart }: { onStart: (p: StartPayload) => 
 function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
   const [history, setHistory] = useState<CompanionRecord[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [saveWarn, setSaveWarn] = useState('');
+  const [health, setHealth] = useState<StorageHealth | null>(null);
 
   const refresh = async () => {
-    setHistory(await listCompanions());
+    const list = await listCompanions();
+    setHistory(list);
+    setHealth(getStorageHealth());
     setLoaded(true);
   };
 
   useEffect(() => {
+    void requestPersistentStorage();
     void refresh();
   }, []);
 
   const startRecord = (rec: CompanionRecord) => {
+    // 从影子备份恢复的记录可能只剩元数据，此时 thumb 是唯一能展示/重传的图
+    const image = rec.image || rec.thumb || '';
     const avatar: AvatarConfig = {
       persona: rec.persona,
       voice: rec.voice,
@@ -91,14 +101,19 @@ function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
     if (isAvatarUsable(rec)) {
       // 已缓存形象资产 → 只发 id，本次通话零图片传输
       avatar.id = rec.avatarId;
-    } else {
+    } else if (image) {
       // 资产不存在/已临近失效 → 用库里的复用图兜底重传
-      avatar.image_uri = rec.image;
+      avatar.image_uri = image;
+    } else {
+      // 既无资产 id 也无图：这条记录已经不可用了，明确告知而不是发给服务端报错
+      setSaveWarn('这条记录的图片已丢失，无法开始通话，请删除后重新上传。');
+      return;
     }
+    setSaveWarn('');
     onStart({
       avatar,
       displayName: rec.name,
-      displayImage: rec.image,
+      displayImage: image,
       companionId: rec.id,
     });
   };
@@ -111,8 +126,13 @@ function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
     try {
       await saveCompanion(full);
       await refresh();
-    } catch {
-      /* 存储失败不阻断通话 */
+      setSaveWarn('');
+    } catch (e) {
+      // 存不进去必须让用户看见，否则会误以为已经保存、下次回来一片空白
+      const reason = e instanceof Error ? e.message : String(e);
+      setSaveWarn(
+        `搭子没能保存到本地（${reason}）。浏览器可能处于隐私模式或存储空间已满，换个浏览器/退出隐私模式再试。本次通话不受影响。`,
+      );
     }
     // 首次通话必须传高清图，Vidu 据此生成形象资产；成功后 id 会回写这条记录
     onStart({
@@ -135,6 +155,22 @@ function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
 
   return (
     <div className="flex flex-col gap-5">
+      {saveWarn && (
+        <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-xs leading-relaxed text-amber-200">
+          {saveWarn}
+        </div>
+      )}
+      {health && !health.indexedDbOk && (
+        <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-xs leading-relaxed text-amber-200">
+          本地数据库不可用，正在使用轻量备份{health.lastError ? `（${health.lastError}）` : ''}。
+          请退出隐私模式或换用普通浏览器窗口，否则搭子记录无法长期保存。
+        </div>
+      )}
+      {health?.source === 'localStorage-backup' && health.indexedDbOk && history.length > 0 && (
+        <div className="rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-xs leading-relaxed text-cyan-200">
+          检测到本地数据库被浏览器清空，已从轻量备份恢复 {history.length} 个搭子。图片可能不完整，建议重新上传一次以恢复最佳画质。
+        </div>
+      )}
       {loaded && history.length > 0 && (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -148,7 +184,11 @@ function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
                 className="glass-dark flex items-center gap-3 rounded-3xl p-3"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={rec.image} alt={rec.name} className="h-14 w-14 flex-none rounded-2xl object-cover ring-1 ring-white/15" />
+                <img
+                  src={rec.image || rec.thumb || ''}
+                  alt={rec.name}
+                  className="h-14 w-14 flex-none rounded-2xl object-cover ring-1 ring-white/15"
+                />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <h3 className="truncate text-sm font-semibold text-white">{rec.name}</h3>
@@ -247,6 +287,9 @@ const AVATAR_QUALITY_LADDER = [0.95, 0.9, 0.82, 0.72];
 /** 存库的复用图长边：够 UI 展示，也够形象资产失效时兜底重传 */
 const REUSE_MAX_EDGE = 1024;
 const REUSE_QUALITY = 0.85;
+/** localStorage 影子备份用的缩略图：单条约 10~25KB，几十个搭子也塞得进 5MB 配额 */
+const THUMB_MAX_EDGE = 320;
+const THUMB_QUALITY = 0.75;
 /** iOS Safari 单 canvas 像素上限约 16.7M，超出会直接白屏 */
 const MAX_CANVAS_PIXELS = 16_000_000;
 
@@ -302,14 +345,19 @@ function dataUriBytes(uri: string): number {
 }
 
 /**
- * 一次选图产出两份：
+ * 一次选图产出三份：
  * - upload：长边 2048 的高清图，只在首次创建会话时传给 Vidu
- * - reuse ：长边 1024 的复用图，入库保存，用于 UI 展示与形象资产失效时的兜底重传
- * 这样 IndexedDB 里不会堆积十几 MB 的原图。
+ * - reuse ：长边 1024 的复用图，入 IndexedDB，用于 UI 展示与形象资产失效时的兜底重传
+ * - thumb ：长边 320 的缩略图，入 localStorage 影子备份，IndexedDB 被清理时保住记录
+ * IndexedDB 里不会堆积十几 MB 的原图。
  */
-async function fileToAvatar(
-  file: File,
-): Promise<{ upload: string; reuse: string; width: number; height: number }> {
+async function fileToAvatar(file: File): Promise<{
+  upload: string;
+  reuse: string;
+  thumb: string;
+  width: number;
+  height: number;
+}> {
   const src = await decodeImage(file);
   const longestEdge = Math.max(src.width, src.height);
 
@@ -320,7 +368,8 @@ async function fileToAvatar(
       : await renderToDataUri(src, AVATAR_MAX_EDGE, AVATAR_QUALITY_LADDER, AVATAR_MAX_BYTES, file);
 
   const reuse = await renderToDataUri(src, REUSE_MAX_EDGE, [REUSE_QUALITY], Infinity, file);
-  return { upload, reuse, width: src.width, height: src.height };
+  const thumb = await renderToDataUri(src, THUMB_MAX_EDGE, [THUMB_QUALITY], Infinity, file);
+  return { upload, reuse, thumb, width: src.width, height: src.height };
 }
 
 async function renderToDataUri(
@@ -371,6 +420,8 @@ function CustomForm({
     greeting: string;
     /** 入库保存的复用图（长边 1024） */
     image: string;
+    /** 影子备份用的缩略图（长边 320） */
+    thumb: string;
     /** 本次创建会话用的高清图（长边 2048），不入库存 */
     uploadImage: string;
     width?: number;
@@ -382,6 +433,7 @@ function CustomForm({
   const [greeting, setGreeting] = useState('用温柔亲切的语气打个招呼。');
   const [voice, setVoice] = useState('Tina');
   const [image, setImage] = useState('');
+  const [thumb, setThumb] = useState('');
   const [uploadImage, setUploadImage] = useState('');
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   const [imageMeta, setImageMeta] = useState('');
@@ -394,9 +446,10 @@ function CustomForm({
       return;
     }
     try {
-      const { upload, reuse, width, height } = await fileToAvatar(file);
+      const { upload, reuse, thumb, width, height } = await fileToAvatar(file);
       setUploadImage(upload);
       setImage(reuse);
+      setThumb(thumb);
       setDims({ w: width, h: height });
       setImageMeta(
         `${width}×${height} · 上传 ${(dataUriBytes(upload) / 1024 / 1024).toFixed(1)}MB`,
@@ -458,6 +511,7 @@ function CustomForm({
             voice,
             greeting,
             image,
+            thumb,
             uploadImage,
             width: dims?.w,
             height: dims?.h,
