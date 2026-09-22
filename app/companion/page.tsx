@@ -99,8 +99,11 @@ export default function CompanionPage() {
 
   if (phase === 'select') {
     return (
-      <main className="min-h-[100dvh] bg-gradient-to-b from-rose-50 via-white to-amber-50">
-        <RoleSelect onStart={start} />
+      <main className="tech-bg relative min-h-[100dvh]">
+        <div className="tech-grid pointer-events-none absolute inset-0 opacity-60" />
+        <div className="relative">
+          <RoleSelect onStart={start} />
+        </div>
       </main>
     );
   }

@@ -24,23 +24,28 @@ export default function RoleSelect({ onStart }: { onStart: (p: StartPayload) => 
   return (
     <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-5 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-[calc(env(safe-area-inset-top)+28px)]">
       <header className="mb-6">
-        <p className="text-xs uppercase tracking-[0.32em] text-rose-400/80">Emotional Companion</p>
-        <h1 className="mt-2 font-serif text-3xl text-slate-800">情感聊天搭子</h1>
-        <p className="mt-2 text-sm leading-relaxed text-slate-500">
-          选择一位懂你的数字人搭子，或上传照片创建专属的 TA，随时开启一段温暖的实时对话。
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.9)]" />
+          <p className="text-[11px] uppercase tracking-[0.42em] text-cyan-300/80">AI Companion · Realtime</p>
+        </div>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white neon-text">
+          情感聊天搭子
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-slate-400">
+          选择一位懂你的数字人搭子，或上传照片生成专属 TA，进入 720P 实时智能对话。
         </p>
       </header>
 
-      <div className="mb-5 grid grid-cols-2 gap-1 rounded-full bg-slate-100 p-1 text-sm">
+      <div className="mb-5 grid grid-cols-2 gap-1 rounded-full border border-white/10 bg-white/5 p-1 text-sm backdrop-blur">
         <button
           onClick={() => setTab('preset')}
-          className={`rounded-full py-2 transition ${tab === 'preset' ? 'bg-white text-slate-800 shadow' : 'text-slate-500'}`}
+          className={`rounded-full py-2 transition ${tab === 'preset' ? 'bg-gradient-to-r from-cyan-500/90 to-indigo-500/90 text-white shadow-[0_0_18px_rgba(34,211,238,0.35)]' : 'text-slate-400'}`}
         >
           精选搭子
         </button>
         <button
           onClick={() => setTab('custom')}
-          className={`rounded-full py-2 transition ${tab === 'custom' ? 'bg-white text-slate-800 shadow' : 'text-slate-500'}`}
+          className={`rounded-full py-2 transition ${tab === 'custom' ? 'bg-gradient-to-r from-cyan-500/90 to-indigo-500/90 text-white shadow-[0_0_18px_rgba(34,211,238,0.35)]' : 'text-slate-400'}`}
         >
           创建专属
         </button>
@@ -102,31 +107,31 @@ function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
       {loaded && history.length > 0 && (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-slate-600">我的搭子（{history.length}）</h2>
-            <span className="text-[11px] text-slate-400">点击直接开始，无需重新上传</span>
+            <h2 className="text-sm font-medium text-slate-300">我的搭子（{history.length}）</h2>
+            <span className="text-[11px] text-slate-500">点击直接开始，无需重新上传</span>
           </div>
           <div className="grid grid-cols-1 gap-3">
             {history.map((rec) => (
               <div
                 key={rec.id}
-                className="flex items-center gap-3 rounded-3xl bg-white/80 p-3 shadow-sm backdrop-blur"
+                className="glass-dark flex items-center gap-3 rounded-3xl p-3"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={rec.image} alt={rec.name} className="h-14 w-14 flex-none rounded-2xl object-cover" />
+                <img src={rec.image} alt={rec.name} className="h-14 w-14 flex-none rounded-2xl object-cover ring-1 ring-white/15" />
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-sm font-semibold text-slate-800">{rec.name}</h3>
-                  <p className="truncate text-xs text-slate-500">{rec.persona}</p>
+                  <h3 className="truncate text-sm font-semibold text-white">{rec.name}</h3>
+                  <p className="truncate text-xs text-slate-400">{rec.persona}</p>
                 </div>
                 <button
                   onClick={() => startRecord(rec)}
-                  className="flex-none rounded-full bg-slate-800 px-4 py-2 text-xs font-medium text-white active:scale-95"
+                  className="flex-none rounded-full bg-gradient-to-r from-cyan-500 to-indigo-500 px-4 py-2 text-xs font-medium text-white shadow-[0_0_16px_rgba(34,211,238,0.35)] active:scale-95"
                 >
                   开始
                 </button>
                 <button
                   onClick={() => handleDelete(rec.id)}
                   aria-label="删除"
-                  className="flex-none rounded-full px-2 py-2 text-slate-400 active:scale-95"
+                  className="flex-none rounded-full px-2 py-2 text-slate-500 active:scale-95"
                 >
                   ✕
                 </button>
@@ -165,22 +170,23 @@ function PresetCard({ preset, onStart }: { preset: CompanionPreset; onStart: (p:
           displayImage: preset.image,
         })
       }
-      className={`group relative overflow-hidden rounded-3xl bg-gradient-to-br ${preset.accent} p-[1px] text-left shadow-sm transition active:scale-[0.99]`}
+      className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-400/40 via-indigo-400/30 to-fuchsia-400/30 p-[1px] text-left transition active:scale-[0.99]"
     >
-      <div className="flex items-center gap-4 rounded-3xl bg-white/80 p-4 backdrop-blur">
+      <div className="glass-dark flex items-center gap-4 rounded-3xl p-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={preset.image}
           alt={preset.name}
-          className="h-16 w-16 flex-none rounded-2xl object-cover"
+          className="h-16 w-16 flex-none rounded-2xl object-cover ring-1 ring-cyan-300/30"
         />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold text-slate-800">{preset.name}</h3>
-            <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] text-rose-500">{preset.tagline}</span>
+            <h3 className="text-base font-semibold text-white">{preset.name}</h3>
+            <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2 py-0.5 text-[11px] text-cyan-300">{preset.tagline}</span>
           </div>
-          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">{preset.description}</p>
+          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-400">{preset.description}</p>
         </div>
+        <span className="ml-auto self-center text-cyan-300/60 transition group-active:translate-x-0.5">›</span>
       </div>
     </button>
   );
@@ -317,10 +323,10 @@ function CustomForm({
 
   return (
     <div className="flex flex-col gap-4">
-      <label className="flex flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-slate-200 bg-white/70 p-5 text-center">
+      <label className="hud-corners flex flex-col items-center justify-center gap-2 rounded-3xl border border-dashed border-cyan-400/25 bg-white/5 p-5 text-center backdrop-blur">
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={image} alt="预览" className="h-36 w-36 rounded-2xl object-cover" />
+          <img src={image} alt="预览" className="h-36 w-36 rounded-2xl object-cover ring-1 ring-cyan-300/30" />
         ) : (
           <span className="text-sm text-slate-400">点击上传一张单人照片作为搭子形象</span>
         )}
@@ -330,10 +336,10 @@ function CustomForm({
           className="hidden"
           onChange={(e) => onPick(e.target.files?.[0])}
         />
-        <span className="text-xs text-rose-400">
+        <span className="text-xs text-cyan-300">
           {image ? `重新选择${imageMeta ? ` · ${imageMeta}` : ''}` : '支持 PNG/JPG/WEBP，单人图'}
         </span>
-        {image && <span className="text-[11px] text-slate-400">已按原图清晰度保留（长边上限 3840px）</span>}
+        {image && <span className="text-[11px] text-slate-500">已按原图清晰度保留（长边上限 3840px）</span>}
       </label>
 
       <Field label="搭子名字">
@@ -349,7 +355,7 @@ function CustomForm({
         <VoicePicker value={voice} onChange={setVoice} />
       </Field>
 
-      {err && <p className="text-xs text-rose-500">{err}</p>}
+      {err && <p className="text-xs text-rose-400">{err}</p>}
 
       <button
         disabled={!canStart}
@@ -364,11 +370,11 @@ function CustomForm({
             height: dims?.h,
           })
         }
-        className="mt-1 rounded-full bg-slate-800 py-3 text-sm font-medium text-white transition active:scale-[0.99] disabled:opacity-40"
+        className="mt-1 rounded-full bg-gradient-to-r from-cyan-500 to-indigo-500 py-3 text-sm font-semibold text-white shadow-[0_0_22px_rgba(34,211,238,0.35)] transition active:scale-[0.99] disabled:opacity-40 disabled:shadow-none"
       >
         保存并开始通话
       </button>
-      <p className="text-center text-[11px] text-slate-400">创建后会自动存入「我的搭子」，下次直接开始</p>
+      <p className="text-center text-[11px] text-slate-500">创建后会自动存入「我的搭子」，下次直接开始</p>
     </div>
   );
 }
@@ -376,7 +382,7 @@ function CustomForm({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium text-slate-500">{label}</span>
+      <span className="text-xs font-medium text-slate-300">{label}</span>
       {children}
     </label>
   );
@@ -396,7 +402,9 @@ function VoicePicker({ value, onChange }: { value: string; onChange: (v: string)
         onChange(id);
       }}
       className={`rounded-full px-3 py-1.5 text-xs transition active:scale-95 ${
-        !custom && value === id ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'
+        !custom && value === id
+          ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-[0_0_14px_rgba(34,211,238,0.4)]'
+          : 'border border-white/10 bg-white/5 text-slate-300'
       }`}
     >
       {label}
@@ -406,7 +414,7 @@ function VoicePicker({ value, onChange }: { value: string; onChange: (v: string)
   return (
     <div className="flex flex-col gap-2.5">
       <div>
-        <p className="mb-1.5 text-[11px] text-rose-400">女声</p>
+        <p className="mb-1.5 text-[11px] text-fuchsia-300">女声</p>
         <div className="flex flex-wrap gap-2">
           {female.map((v) => (
             <Chip key={v.id} id={v.id} label={v.label.split(' · ')[1] || v.label} />
@@ -414,7 +422,7 @@ function VoicePicker({ value, onChange }: { value: string; onChange: (v: string)
         </div>
       </div>
       <div>
-        <p className="mb-1.5 text-[11px] text-sky-500">男声</p>
+        <p className="mb-1.5 text-[11px] text-cyan-300">男声</p>
         <div className="flex flex-wrap gap-2">
           {male.map((v) => (
             <Chip key={v.id} id={v.id} label={v.label.split(' · ')[1] || v.label} />
