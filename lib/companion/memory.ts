@@ -184,7 +184,14 @@ export function compressTranscript(
   at: number,
   maxChars = 1200,
 ): string {
+  const seen = new Set<string>();
   const text = lines
+    .filter((l) => {
+      const k = `${l.role}:${l.text.trim()}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
     .map((l) => `${l.role === 'user' ? 'TA' : '我'}：${l.text}`)
     .join('\n');
   if (text.length <= maxChars) return text;
@@ -193,17 +200,30 @@ export function compressTranscript(
   return `${head}\n……（中间省略）……\n${tail}`;
 }
 
+/** 去掉完全重复的行（回声、重复提交会让字幕出现同句） */
+function dedupe(texts: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const t of texts) {
+    const k = t.trim();
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push(k);
+  }
+  return out;
+}
+
 /** 规则化摘要：没有 LLM 时用它兜底 */
 export function ruleSummary(
   lines: { role: 'user' | 'bot'; text: string }[],
   durationMs: number,
 ): string {
-  const userLines = lines.filter((l) => l.role === 'user');
-  const last = userLines.slice(-3).map((l) => l.text).join('；');
-  const first = userLines.slice(0, 2).map((l) => l.text).join('；');
+  const userLines = dedupe(lines.filter((l) => l.role === 'user').map((l) => l.text));
+  const last = userLines.slice(-3).join('；');
+  const first = userLines.slice(0, 2).join('；');
   const dur = minutes(durationMs);
-  const head = first ? `聊了 ${dur}，开头说到「${first.slice(0, 40)}」` : `聊了 ${dur}`;
-  const tail = last ? `，最后聊到「${last.slice(0, 60)}」` : '';
+  const head = first ? `这次聊了 ${dur}，主要说了「${first.slice(0, 40)}」` : `这次聊了 ${dur}`;
+  const tail = last ? `，结束时提到「${last.slice(0, 60)}」` : '';
   return `${head}${tail}。`.slice(0, 200);
 }
 
@@ -382,21 +402,26 @@ export function buildPersona(basePersona: string, memory?: CompanionMemory | nul
   return `${base}\n\n${injected}`.trim();
 }
 
-/** greeting_instruction 上限 200 字符，必须短小精悍 */
+/**
+ * greeting_instruction 上限 200 字符，必须短小精悍。
+ * 用 TA 的原话（topics）而不是摘要——摘要是元描述，塞进去会让开场白变得机械。
+ */
 export function buildGreeting(baseGreeting: string, memory?: CompanionMemory | null): string {
-  const base = (baseGreeting || '').trim();
+  // 去掉结尾标点，否则会拼出「打个招呼。，上次…」这种怪句子
+  const base = (baseGreeting || '').trim().replace(/[。.,，；;\s]+$/, '');
   if (!memory) return base;
-  const last = memory.digests[0];
   const topic = memory.topics[0]?.text;
   const rel = memory.relation;
 
-  const parts: string[] = [base];
-  if (last || topic) {
-    parts.push(
-      `上次你们${last ? `聊到「${last.summary.slice(0, 30)}」` : `聊到「${topic!.slice(0, 20)}」`}，开口时自然地关心一下后续`,
-    );
+  const parts: string[] = [];
+  if (base) parts.push(base);
+  if (topic) {
+    parts.push(`上次聊到「${topic.slice(0, 24).replace(/[「」]/g, '')}」，可以自然地接着这个话题`);
+  } else if (memory.digests.length) {
+    parts.push('自然地接续上次没聊完的话题');
   }
-  if (rel.nickname) parts.push(`叫 TA「${rel.nickname}」`);
-  const out = parts.filter(Boolean).join('；');
+  if (rel.nickname) parts.push(`开口时叫 TA「${rel.nickname}」`);
+
+  const out = parts.join('，');
   return out.length > 200 ? out.slice(0, 200) : out;
 }
