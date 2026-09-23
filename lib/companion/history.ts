@@ -1,6 +1,7 @@
 'use client';
 
 // 自定义搭子历史记录：用 IndexedDB 存储（可容纳高分辨率图片，远超 localStorage 5MB 限制）。
+import type { CompanionMemory } from './memory';
 
 /**
  * 存储策略（重要）：
@@ -27,6 +28,8 @@ export interface CompanionRecord {
   avatarId?: string;
   /** 形象资产创建时间（ms），用于判断是否临近 90 天失效 */
   avatarIdAt?: number;
+  /** 跨会话的关系记忆：事实、话题、通话摘要、亲密度依据 */
+  memory?: CompanionMemory;
   createdAt: number;
 }
 
@@ -74,9 +77,21 @@ export async function requestPersistentStorage(): Promise<boolean> {
   }
 }
 
-/** 擦除图片，只留元数据（localStorage 配额不足时的保底形态） */
+/** 影子备份里的记忆精简版：对话原文最占空间，备份一律不存 */
+function slimMemory(m?: CompanionMemory): CompanionMemory | undefined {
+  if (!m) return undefined;
+  return {
+    ...m,
+    facts: m.facts.slice(0, 8),
+    topics: m.topics.slice(0, 5),
+    digests: m.digests.slice(0, 2),
+    transcripts: [],
+  };
+}
+
+/** 擦除图片、精简记忆，只留元数据（localStorage 配额不足时的保底形态） */
 function stripImages<T extends CompanionRecord>(r: T): T {
-  return { ...r, image: '', thumb: '' };
+  return { ...r, image: '', thumb: '', memory: slimMemory(r.memory) };
 }
 
 function readBackup(): CompanionRecord[] {
@@ -261,6 +276,21 @@ export async function patchCompanion(
       writeBackup([{ ...cur, ...patch }, ...readBackup().filter((r) => r.id !== id)]);
     }
     throw idbError;
+  }
+}
+
+/** 读取单条记录（通话结束后据此取出既有记忆再合并） */
+export async function getCompanion(id: string): Promise<CompanionRecord | null> {
+  try {
+    const db = await openDb();
+    return await new Promise<CompanionRecord | null>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).get(id);
+      req.onsuccess = () => resolve((req.result as CompanionRecord) || null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    return null;
   }
 }
 

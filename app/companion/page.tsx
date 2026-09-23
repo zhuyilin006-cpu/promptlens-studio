@@ -1,13 +1,14 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import RoleSelect, { type StartPayload } from '@/components/companion/RoleSelect';
 import CallScreen, { type Subtitle } from '@/components/companion/CallScreen';
 import ControlBar from '@/components/companion/ControlBar';
 import TextComposer from '@/components/companion/TextComposer';
 import { ViduCompanionSession } from '@/lib/vidu/client';
-import { patchCompanion } from '@/lib/companion/history';
+import { getCompanion, patchCompanion } from '@/lib/companion/history';
 import { clearPresetAvatar, writePresetAvatar } from '@/lib/companion/presetAvatar';
+import { emptyMemory, mergeMemory, parseLlmMemory } from '@/lib/companion/memory';
 import { DEFAULT_CALL_MODE } from '@/data/companionPersonas';
 import type { SessionStatus } from '@/lib/vidu/types';
 
@@ -27,42 +28,88 @@ export default function CompanionPage() {
   const sessionRef = useRef<ViduCompanionSession | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const subIdRef = useRef(0);
+  // 字幕与通话计时用 ref 同步，挂断回调里才能读到最新值
+  const subtitlesRef = useRef<Subtitle[]>([]);
+  const callStartRef = useRef(0);
+  const companionIdRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    subtitlesRef.current = subtitles;
+  }, [subtitles]);
 
   const addSubtitle = useCallback((text: string, role: 'user' | 'bot') => {
     subIdRef.current += 1;
     setSubtitles((prev) => [...prev, { id: subIdRef.current, text, role }]);
   }, []);
 
+  /**
+   * 挂断后把这次通话沉淀进长期记忆。
+   * 先尝试服务端的大模型提炼，没配置就静默回退到规则化提炼。
+   */
+  const persistMemory = useCallback(async () => {
+    const id = companionIdRef.current;
+    if (!id) return;
+    const lines = subtitlesRef.current
+      .filter((s) => s.text && s.text.trim())
+      .map((s) => ({ role: s.role, text: s.text }));
+    if (!lines.length) return;
+
+    const durationMs = callStartRef.current ? Date.now() - callStartRef.current : 0;
+
+    let summary: string | undefined;
+    let extraFacts: string[] | undefined;
+    try {
+      const res = await fetch('/api/companion/memory/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lines }),
+      });
+      if (res.ok) {
+        const d = (await res.json()) as { ok?: boolean; text?: string };
+        if (d?.ok && d.text) {
+          const parsed = parseLlmMemory(d.text);
+          if (parsed.summary) summary = parsed.summary;
+          if (parsed.facts.length) extraFacts = parsed.facts;
+        }
+      }
+    } catch {
+      /* 提炼失败不影响保存，走规则化 */
+    }
+
+    try {
+      const rec = await getCompanion(id);
+      const prev = rec?.memory ?? emptyMemory();
+      const next = mergeMemory(prev, { lines, durationMs, summary, extraFacts });
+      await patchCompanion(id, { memory: next });
+    } catch {
+      /* 记忆写回失败不影响本次使用 */
+    }
+  }, []);
+
   const start = useCallback(
     async (p: StartPayload) => {
       setDisplay({ name: p.displayName, image: p.displayImage });
       setSubtitles([]);
+      subtitlesRef.current = [];
+      callStartRef.current = 0;
+      companionIdRef.current = p.companionId;
       setBanner(undefined);
       setRemoteLive(false);
       setPhase('call');
       setStatus('creating');
 
-      // 用户手势内申请麦克风/摄像头权限（失败则降级为只出）
-      // 视频按 720p 申请，与 AliRTC 采集配置保持一致，避免被浏览器降到默认低分辨率
+      // 用户手势内单独申请麦克风权限（不连带摄像头，避免摄像头不可用被误判成麦克风被拒）。
+      // 情感陪聊无需推送本地摄像头，数字人视频从云端拉取。
       try {
-        const media = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video:
-            DEFAULT_CALL_MODE === 'video'
-              ? {
-                  width: { ideal: 1280 },
-                  height: { ideal: 720 },
-                  frameRate: { ideal: 30 },
-                }
-              : false,
-        });
-        media.getTracks().forEach((t) => t.stop());
+        const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mic.getTracks().forEach((t) => t.stop());
       } catch {
-        setBanner('未获得麦克风权限，已降级为只听/文字模式');
+        setBanner('麦克风权限被拒绝，请在浏览器权限设置中允许麦克风后重试（仍可用文字聊天）');
       }
 
       const session = new ViduCompanionSession({
         onStatus: (s, d) => {
+          if (s === 'live' && !callStartRef.current) callStartRef.current = Date.now();
           setStatus(s);
           setStatusDetail(d);
         },
@@ -110,11 +157,17 @@ export default function CompanionPage() {
   const hangup = useCallback(async () => {
     await sessionRef.current?.hangup();
     sessionRef.current = null;
+    const duration = callStartRef.current ? Date.now() - callStartRef.current : 0;
+    await persistMemory();
+    callStartRef.current = 0;
     setRemoteLive(false);
     setStatus('idle');
     setStatusDetail(undefined);
     setPhase('select');
-  }, []);
+    if (duration > 0 && companionIdRef.current) {
+      setBanner('这次聊天已经记下来了');
+    }
+  }, [persistMemory]);
 
   const toggleMic = useCallback(() => {
     setMicEnabled((prev) => {

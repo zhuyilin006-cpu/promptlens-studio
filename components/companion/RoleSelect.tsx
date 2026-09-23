@@ -10,12 +10,37 @@ import {
   isAvatarUsable,
   listCompanions,
   newId,
+  patchCompanion,
   requestPersistentStorage,
   saveCompanion,
   type CompanionRecord,
   type StorageHealth,
 } from '@/lib/companion/history';
 import { readPresetAvatar } from '@/lib/companion/presetAvatar';
+import {
+  buildGreeting,
+  buildPersona,
+  closenessOf,
+  defaultRelation,
+  emptyMemory,
+  stageOf,
+  RELATION_PRESETS,
+  type CompanionMemory,
+  type RelationProfile,
+} from '@/lib/companion/memory';
+
+/**
+ * 把关系记忆注入人设与开场白。
+ * 这是"数字人认识你"的唯一通道——Vidu 会话本身无状态，全靠 persona 带过去。
+ */
+function withMemory(avatar: AvatarConfig, memory?: CompanionMemory): AvatarConfig {
+  if (!memory) return avatar;
+  return {
+    ...avatar,
+    persona: buildPersona(avatar.persona, memory),
+    greeting_instruction: buildGreeting(avatar.greeting_instruction || '', memory),
+  };
+}
 
 export interface StartPayload {
   avatar: AvatarConfig;
@@ -77,6 +102,7 @@ function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
   const [loaded, setLoaded] = useState(false);
   const [saveWarn, setSaveWarn] = useState('');
   const [health, setHealth] = useState<StorageHealth | null>(null);
+  const [memoryFor, setMemoryFor] = useState<CompanionRecord | null>(null);
 
   const refresh = async () => {
     const list = await listCompanions();
@@ -111,7 +137,7 @@ function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
     }
     setSaveWarn('');
     onStart({
-      avatar,
+      avatar: withMemory(avatar, rec.memory),
       displayName: rec.name,
       displayImage: image,
       companionId: rec.id,
@@ -119,10 +145,14 @@ function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
   };
 
   const handleCreate = async (
-    rec: Omit<CompanionRecord, 'id' | 'createdAt'> & { uploadImage: string },
+    rec: Omit<CompanionRecord, 'id' | 'createdAt'> & {
+      uploadImage: string;
+      relation?: RelationProfile;
+    },
   ) => {
-    const { uploadImage, ...rest } = rec;
-    const full: CompanionRecord = { ...rest, id: newId(), createdAt: Date.now() };
+    const { uploadImage, relation, ...rest } = rec;
+    const memory = emptyMemory(relation);
+    const full: CompanionRecord = { ...rest, memory, id: newId(), createdAt: Date.now() };
     try {
       await saveCompanion(full);
       await refresh();
@@ -136,12 +166,15 @@ function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
     }
     // 首次通话必须传高清图，Vidu 据此生成形象资产；成功后 id 会回写这条记录
     onStart({
-      avatar: {
-        persona: rec.persona,
-        image_uri: uploadImage || rec.image,
-        voice: rec.voice,
-        greeting_instruction: rec.greeting,
-      },
+      avatar: withMemory(
+        {
+          persona: rec.persona,
+          image_uri: uploadImage || rec.image,
+          voice: rec.voice,
+          greeting_instruction: rec.greeting,
+        },
+        memory,
+      ),
       displayName: rec.name,
       displayImage: rec.image,
       companionId: full.id,
@@ -198,6 +231,22 @@ function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
                       </span>
                     )}
                   </div>
+                  {rec.memory && (
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="flex-none text-[10px] text-cyan-300">
+                        {rec.memory.relation.label} · {stageOf(closenessOf(rec.memory)).name}
+                      </span>
+                      <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-1 rounded-full bg-cyan-400"
+                          style={{ width: `${closenessOf(rec.memory)}%` }}
+                        />
+                      </div>
+                      <span className="flex-none text-[10px] text-slate-500">
+                        {rec.memory.facts.length ? `记得 ${rec.memory.facts.length} 条` : '刚认识'}
+                      </span>
+                    </div>
+                  )}
                   <p className="truncate text-xs text-slate-400">{rec.persona}</p>
                 </div>
                 <button
@@ -205,6 +254,13 @@ function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
                   className="flex-none rounded-full bg-gradient-to-r from-cyan-500 to-indigo-500 px-4 py-2 text-xs font-medium text-white shadow-[0_0_16px_rgba(34,211,238,0.35)] active:scale-95"
                 >
                   开始
+                </button>
+                <button
+                  onClick={() => setMemoryFor(rec)}
+                  aria-label="查看记忆"
+                  className="flex-none rounded-full border border-white/10 bg-white/5 px-2.5 py-2 text-xs text-cyan-300 active:scale-95"
+                >
+                  忆
                 </button>
                 <button
                   onClick={() => handleDelete(rec.id)}
@@ -219,6 +275,149 @@ function CustomTab({ onStart }: { onStart: (p: StartPayload) => void }) {
         </section>
       )}
       <CustomForm onCreate={handleCreate} />
+      {memoryFor && (
+        <MemorySheet
+          record={memoryFor}
+          onClose={() => {
+            setMemoryFor(null);
+            void refresh();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function MemorySheet({
+  record,
+  onClose,
+}: {
+  record: CompanionRecord;
+  onClose: () => void;
+}) {
+  const [memory, setMemory] = useState<CompanionMemory>(
+    record.memory ?? emptyMemory(),
+  );
+  const [draft, setDraft] = useState('');
+
+  const save = async (next: CompanionMemory) => {
+    setMemory(next);
+    try {
+      await patchCompanion(record.id, { memory: next });
+    } catch {
+      /* 写回失败不影响展示 */
+    }
+  };
+
+  const removeFact = (id: string) =>
+    void save({ ...memory, facts: memory.facts.filter((f) => f.id !== id) });
+
+  const addFact = () => {
+    const text = draft.trim();
+    if (!text) return;
+    setDraft('');
+    void save({
+      ...memory,
+      facts: [
+        { id: `fm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, text, at: Date.now() },
+        ...memory.facts,
+      ],
+    });
+  };
+
+  const closeness = closenessOf(memory);
+  const stage = stageOf(closeness);
+  const s = memory.stats;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0">
+      <div className="glass-dark max-h-[80dvh] w-full max-w-md overflow-y-auto rounded-t-3xl p-5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-white">{record.name} 的记忆</h3>
+          <button onClick={onClose} className="rounded-full px-2 py-1 text-slate-400">
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <span className="flex-none text-xs text-cyan-300">
+            {memory.relation.label} · {stage.name}
+          </span>
+          <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
+            <div className="h-1.5 rounded-full bg-cyan-400" style={{ width: `${closeness}%` }} />
+          </div>
+          <span className="flex-none text-xs text-slate-400">亲密 {closeness}</span>
+        </div>
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+          聊过 {s.sessions} 次 · 累计 {Math.round(s.totalMs / 60000)} 分钟 · {stage.hint}
+        </p>
+
+        <div className="mt-4">
+          <span className="text-xs font-medium text-slate-300">TA 记得这些</span>
+          {memory.facts.length ? (
+            <div className="mt-2 flex flex-col gap-1.5">
+              {memory.facts.map((f) => (
+                <div
+                  key={f.id}
+                  className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2"
+                >
+                  <span className="min-w-0 flex-1 text-xs text-slate-200">{f.text}</span>
+                  <button
+                    onClick={() => removeFact(f.id)}
+                    aria-label="删除这条记忆"
+                    className="flex-none text-xs text-slate-500"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-xs text-slate-500">
+              还没有记录。多聊几次，TA 会记住你喜欢什么、在意什么。
+            </p>
+          )}
+          <div className="mt-2 flex gap-2">
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="补充一条，比如「TA 怕黑」"
+              className="input flex-1"
+            />
+            <button
+              onClick={addFact}
+              className="flex-none rounded-full bg-cyan-500/20 px-3 py-2 text-xs text-cyan-200"
+            >
+              添加
+            </button>
+          </div>
+        </div>
+
+        {memory.digests.length > 0 && (
+          <div className="mt-4">
+            <span className="text-xs font-medium text-slate-300">你们聊过</span>
+            <div className="mt-2 flex flex-col gap-1.5">
+              {memory.digests.slice(0, 5).map((d) => (
+                <div key={d.at} className="rounded-xl bg-white/5 px-3 py-2">
+                  <p className="text-[11px] text-slate-500">
+                    {new Date(d.at).toLocaleDateString('zh-CN')} · {Math.max(1, Math.round(d.durationMs / 60000))} 分钟
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-300">{d.summary}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {memory.facts.length > 0 && (
+          <button
+            onClick={() => void save({ ...memory, facts: [], topics: [], digests: [], transcripts: [] })}
+            className="mt-4 w-full rounded-full border border-rose-400/30 bg-rose-400/10 py-2 text-xs text-rose-300"
+          >
+            清空全部记忆（保留关系设定）
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -424,6 +623,8 @@ function CustomForm({
     thumb: string;
     /** 本次创建会话用的高清图（长边 2048），不入库存 */
     uploadImage: string;
+    /** 关系设定，决定数字人用什么身份和语气对你 */
+    relation?: RelationProfile;
     width?: number;
     height?: number;
   }) => void;
@@ -438,6 +639,7 @@ function CustomForm({
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   const [imageMeta, setImageMeta] = useState('');
   const [err, setErr] = useState('');
+  const [relation, setRelation] = useState<RelationProfile>(defaultRelation());
 
   const onPick = async (file?: File) => {
     if (!file) return;
@@ -500,6 +702,8 @@ function CustomForm({
         <VoicePicker value={voice} onChange={setVoice} />
       </Field>
 
+      <RelationSetup value={relation} onChange={setRelation} />
+
       {err && <p className="text-xs text-rose-400">{err}</p>}
 
       <button
@@ -513,6 +717,7 @@ function CustomForm({
             image,
             thumb,
             uploadImage,
+            relation,
             width: dims?.w,
             height: dims?.h,
           })
@@ -522,6 +727,67 @@ function CustomForm({
         保存并开始通话
       </button>
       <p className="text-center text-[11px] text-slate-500">创建后会自动存入「我的搭子」，下次直接开始</p>
+    </div>
+  );
+}
+
+function RelationSetup({
+  value,
+  onChange,
+}: {
+  value: RelationProfile;
+  onChange: (v: RelationProfile) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-xs font-medium text-slate-300">你们的关系</span>
+      <div className="flex flex-wrap gap-2">
+        {RELATION_PRESETS.map((p) => {
+          const active = value.type === p.type;
+          return (
+            <button
+              key={p.type}
+              onClick={() =>
+                onChange({ ...value, type: p.type, label: p.type === 'custom' ? '' : p.label })
+              }
+              className={`rounded-full border px-3 py-1.5 text-xs transition active:scale-95 ${
+                active
+                  ? 'border-cyan-400/60 bg-cyan-400/15 text-cyan-200'
+                  : 'border-white/10 bg-white/5 text-slate-400'
+              }`}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+      {value.type === 'custom' && (
+        <input
+          value={value.label}
+          maxLength={16}
+          onChange={(e) => onChange({ ...value, label: e.target.value })}
+          placeholder="自定义关系名，如「青梅竹马」"
+          className="input"
+        />
+      )}
+      <input
+        value={value.nickname || ''}
+        maxLength={20}
+        onChange={(e) => onChange({ ...value, nickname: e.target.value })}
+        placeholder="TA 怎么称呼你（可不填）"
+        className="input"
+      />
+      <textarea
+        value={value.background || ''}
+        rows={3}
+        maxLength={300}
+        onChange={(e) => onChange({ ...value, background: e.target.value })}
+        placeholder="你们的背景故事：怎么认识的、有什么默契（可不填）"
+        className="input resize-none"
+      />
+      <p className="text-[11px] leading-relaxed text-slate-500">
+        关系会随你们聊的次数和时长自然升温，语气与亲密度都会跟着变。每次挂断后，TA 会记住这次聊了什么。
+      </p>
     </div>
   );
 }

@@ -20,15 +20,6 @@ export interface RtcHandle {
   leave: () => Promise<void>;
 }
 
-/** 高清采集/订阅参数：720p@30fps，码率上调以保证画面细节 */
-const HD_CAPTURE = {
-  width: 1280,
-  height: 720,
-  frameRate: 30,
-  maxSendFrameRate: 30,
-  bitrate: 2500, // kbps，SDK 默认 2000
-};
-
 export async function joinRtc(opts: RtcJoinOptions): Promise<RtcHandle> {
   const mod: any = await import('aliyun-rtc-sdk');
   const AliRtcEngine: any = mod.default || mod.AliRtcEngine || mod;
@@ -90,25 +81,11 @@ export async function joinRtc(opts: RtcJoinOptions): Promise<RtcHandle> {
   engine.setDefaultSubscribeAllRemoteVideoStreams?.(true);
   try { engine.setRemoteDefaultVideoStreamType?.(HIGH); } catch { /* noop */ }
 
-  // 本地采集保持 720p 高清：必须在入会/推流前设置
-  if (opts.mode === 'video') {
-    try {
-      await engine.setCameraCapturerConfiguration?.(HD_CAPTURE);
-    } catch {
-      /* 不支持时忽略，沿用 SDK 默认（1280x720@30） */
-    }
-    // detail：让编码器优先保留细节而非流畅度，画面更锐利
-    try { await engine.setCameraCapturerContentHint?.('detail'); } catch { /* noop */ }
-  }
-
   await engine.joinChannel(opts.rtc.token, opts.rtc.user_id);
+  // 情感陪聊只需上行麦克风；本地摄像头不推送（数字人视频从云端拉取），
+  // 这样也避免摄像头权限/占用问题拖累麦克风。
   await engine.publishLocalAudioStream?.(true);
-  if (opts.mode === 'video') {
-    await engine.publishLocalVideoStream?.(true);
-    // 入会后再次兜底设置，部分版本 SDK 需要在 join 之后生效
-    try { await engine.setCameraCapturerConfiguration?.(HD_CAPTURE); } catch { /* noop */ }
-    try { engine.setRemoteDefaultVideoStreamType?.(HIGH); } catch { /* noop */ }
-  }
+  try { engine.setRemoteDefaultVideoStreamType?.(HIGH); } catch { /* noop */ }
 
   return {
     setMicEnabled: (enabled: boolean) => {
